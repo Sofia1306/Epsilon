@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Portfolio Management</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5; }
+        .header { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .welcome { color: #333; }
+        .logout-btn { background: #dc3545; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; float: right; }
+        .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .card h3 { margin-top: 0; color: #333; }
+        .card button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; width: 100%; }
+        .card button:hover { background: #0056b3; }
+        .portfolio-panel { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-top: 20px; display: none; }
+        .portfolio-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 20px; }
+        .summary-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px; text-align: center; }
+        .summary-value { font-size: 24px; font-weight: bold; margin: 10px 0; }
+        .summary-label { font-size: 14px; opacity: 0.9; }
+        .investments-table { overflow-x: auto; }
+        .table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        .table th, .table td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        .table th { background-color: #f8f9fa; font-weight: bold; }
+        .gain-positive { color: #28a745; font-weight: bold; }
+        .gain-negative { color: #dc3545; font-weight: bold; }
+        .loading { text-align: center; padding: 20px; color: #666; }
+        .error { background: #f8d7da; color: #721c24; padding: 15px; border-radius: 4px; margin: 10px 0; border: 1px solid #f5c6cb; }
+        .close-btn { background: #6c757d; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; float: right; margin-bottom: 10px; }
+        .close-btn:hover { background: #5a6268; }
+        .no-investments { text-align: center; padding: 40px; color: #666; }
+        .refresh-btn { background: #28a745; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; margin-right: 10px; }
+        .refresh-btn:hover { background: #218838; }
+        .charts-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin: 20px 0; }
+        .chart-card { background: #f8f9fa; padding: 20px; border-radius: 8px; text-align: center; }
+        .chart-title { font-size: 16px; font-weight: bold; color: #333; margin-bottom: 15px; }
+        .chart-wrapper { position: relative; height: 250px; }
+        .story-section { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px; margin: 20px 0; }
+        .story-title { font-size: 18px; font-weight: bold; margin-bottom: 10px; }
+        .story-text { font-size: 14px; line-height: 1.6; opacity: 0.9; }
+        .highlight { background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 3px; font-weight: bold; }
+        .investments-panel { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-top: 20px; display: none; }
+        .filter-section { background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        .filter-row { display: flex; gap: 15px; margin-bottom: 15px; flex-wrap: wrap; align-items: center; }
+        .filter-group { display: flex; flex-direction: column; min-width: 200px; }
+        .filter-group label { font-size: 12px; color: #666; margin-bottom: 5px; }
+        .filter-group select, .filter-group input { padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+        .time-series-chart { height: 400px; margin: 20px 0; }
+        .investment-checkboxes { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin: 15px 0; }
+        .checkbox-item { display: flex; align-items: center; gap: 8px; padding: 8px; background: white; border-radius: 4px; }
+        .checkbox-item input[type="checkbox"] { margin: 0; }
+        .checkbox-item label { margin: 0; cursor: pointer; flex-grow: 1; }
+        .performance-indicator { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-left: 5px; }
+        .performance-positive { background: #28a745; }
+        .performance-negative { background: #dc3545; }
+        .performance-neutral { background: #6c757d; }
+        .chart-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .chart-type-buttons { display: flex; gap: 10px; }
+        .chart-type-btn { padding: 6px 12px; border: 1px solid #007bff; background: white; color: #007bff; border-radius: 4px; cursor: pointer; }
+        .chart-type-btn.active { background: #007bff; color: white; }
+        .investment-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .summary-item { background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center; }
+        .summary-item h4 { margin: 0 0 10px 0; color: #333; }
+        .summary-value { font-size: 18px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1 class="welcome">Bienvenido, <span id="userName"></span>!</h1>
+        <button class="logout-btn" onclick="logout()">Cerrar Sesión</button>
+        <div style="clear: both;"></div>
+    </div>
+    
+    <div class="cards">
+        <div class="card">
+            <h3>Portfolio</h3>
+            <p>Gestiona tus inversiones</p>
+            <button onclick="togglePortfolio()">Ver Portfolio</button>
+        </div>
+        
+        <div class="card">
+            <h3>Inversiones</h3>
+            <p>Administra tus inversiones</p>
+            <button onclick="loadInvestments()">Ver Inversiones</button>
+        </div>
+        
+        <div class="card">
+            <h3>Comprar Acciones</h3>
+            <p>Simula la compra de acciones</p>
+            <button onclick="window.location.href='buy-stocks.html'">Comprar</button>
+        </div>
+        
+        <div class="card">
+            <h3>Vender Acciones</h3>
+            <p>Gestiona y vende tus acciones</p>
+            <button onclick="window.location.href='manage-investments.html'">Gestionar</button>
+        </div>
+        
+        <div class="card">
+            <h3>Mercado</h3>
+            <p>Datos del mercado financiero</p>
+            <button onclick="loadMarket()">Ver Mercado</button>
+        </div>
+    </div>
+
+    <!-- Portfolio Panel -->
+    <div id="portfolioPanel" class="portfolio-panel">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h2>Mi Portfolio</h2>
+            <div>
+                <button class="refresh-btn" onclick="loadPortfolio()">🔄 Actualizar</button>
+                <button class="close-btn" onclick="closePortfolio()">✕ Cerrar</button>
+            </div>
+        </div>
+        
+        <div id="portfolioContent">
+            <div class="loading">Cargando información del portfolio...</div>
+        </div>
+    </div>
+
+    <!-- Investments Panel -->
+    <div id="investmentsPanel" class="investments-panel">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h2>Análisis de Inversiones</h2>
+            <div>
+                <button class="refresh-btn" onclick="loadInvestmentsAnalysis()">🔄 Actualizar</button>
+                <button class="close-btn" onclick="closeInvestments()">✕ Cerrar</button>
+            </div>
+        </div>
+        
+        <div id="investmentsContent">
+            <div class="loading">Cargando análisis de inversiones...</div>
+        </div>
+    </div>
+    
+    <script>
+        // Verificar si hay usuario logueado
+        const userId = localStorage.getItem('userId');
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        let portfolioVisible = false;
+        let portfolioCharts = {};
+        
+        if (!userId) {
+            window.location.href = 'login.html';
+        }
+        
+        document.getElementById('userName').textContent = user.firstName || user.username || 'Usuario';
+        
+        function logout() {
+            localStorage.removeItem('userId');
+            localStorage.removeItem('user');
+            window.location.href = 'login.html';
+        }
+        
+        function togglePortfolio() {
+            const panel = document.getElementById('portfolioPanel');
+            if (portfolioVisible) {
+                closePortfolio();
+            } else {
+                panel.style.display = 'block';
+                portfolioVisible = true;
+                loadPortfolio();
+            }
+        }
+        
+        function closePortfolio() {
+            // Destroy charts when closing
+            Object.values(portfolioCharts).forEach(chart => {
+                if (chart) chart.destroy();
+            });
+            portfolioCharts = {};
+            
+            document.getElementById('portfolioPanel').style.display = 'none';
+            portfolioVisible = false;
+        }
+        
+        async function loadPortfolio() {
+            const contentDiv = document.getElementById('portfolioContent');
+            contentDiv.innerHTML = '<div class="loading">Cargando información del portfolio...</div>';
+            
+            try {
+                // Load portfolio details and investments in parallel
+                const [portfolioResponse, investmentsResponse] = await Promise.all([
+                    fetch('/api/portfolio/', {
+                        headers: { 'x-user-id': userId }
+                    }),
+                    fetch('/api/investments/', {
+                        headers: { 'x-user-id': userId }
+                    })
+                ]);
+                
+                const portfolioData = await portfolioResponse.json();
+                const investmentsData = await investmentsResponse.json();
+                
+                if (portfolioData.success && investmentsData.success) {
+                    displayPortfolioData(portfolioData.data, investmentsData.data);
+                } else {
+                    contentDiv.innerHTML = '<div class="error">Error cargando datos del portfolio</div>';
+                }
+            } catch (error) {
+                contentDiv.innerHTML = '<div class="error">Error de conexión al cargar el portfolio</div>';
+                console.error('Error loading portfolio:', error);
+            }
+        }
+        
+        function displayPortfolioData(portfolio, investments) {
+            const contentDiv = document.getElementById('portfolioContent');
+            
+            // Portfolio Summary
+            let summaryHTML = `
+                <div class="portfolio-summary">
+                    <div class="summary-card">
+                        <div class="summary-label">Valor Total</div>
+                        <div class="summary-value">$${portfolio.totalValue}</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-label">Total Invertido</div>
+                        <div class="summary-value">$${portfolio.totalInvested}</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-label">Ganancia/Pérdida</div>
+                        <div class="summary-value ${parseFloat(portfolio.totalReturn) >= 0 ? 'gain-positive' : 'gain-negative'}">
+                            $${portfolio.totalReturn}
+                        </div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-label">Rendimiento</div>
+                        <div class="summary-value ${parseFloat(portfolio.returnPercentage) >= 0 ? 'gain-positive' : 'gain-negative'}">
+                            ${portfolio.returnPercentage}%
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Add storytelling section
+            if (investments.length > 0) {
+                const story = generatePortfolioStory(portfolio, investments);
+                summaryHTML += `
+                    <div class="story-section">
+                        <div class="story-title">📊 Resumen de tu Portfolio</div>
+                        <div class="story-text">${story}</div>
+                    </div>
+                `;
+                
+                // Charts Container
+                summaryHTML += `
+                    <div class="charts-container">
+                        <div class="chart-card">
+                            <div class="chart-title">Distribución por Acciones</div>
+                            <div class="chart-wrapper">
+                                <canvas id="stockDistributionChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="chart-card">
+                            <div class="chart-title">Rendimiento por Inversión</div>
+                            <div class="chart-wrapper">
+                                <canvas id="performanceChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Investments Table
+            if (investments.length > 0) {
+                summaryHTML += `
+                    <div class="investments-table">
+                        <h3>Mis Inversiones (${investments.length})</h3>
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Símbolo</th>
+                                    <th>Empresa</th>
+                                    <th>Cantidad</th>
+                                    <th>Precio Compra</th>
+                                    <th>Precio Actual</th>
+                                    <th>Valor Actual</th>
+                                    <th>Ganancia/Pérdida</th>
+                                    <th>%</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                
+                investments.forEach(investment => {
+                    const gainLossClass = parseFloat(investment.gainLoss || 0) >= 0 ? 'gain-positive' : 'gain-negative';
+                    const gainLossPercentClass = parseFloat(investment.gainLossPercent || 0) >= 0 ? 'gain-positive' : 'gain-negative';
+                    
+                    summaryHTML += `
+                        <tr>
+                            <td><strong>${investment.symbol}</strong></td>
+                            <td>${investment.companyName || 'N/A'}</td>
+                            <td>${investment.quantity}</td>
+                            <td>$${parseFloat(investment.purchasePrice).toFixed(2)}</td>
+                            <td>$${parseFloat(investment.currentPrice || investment.purchasePrice).toFixed(2)}</td>
+                            <td>$${investment.currentValue || (investment.quantity * parseFloat(investment.currentPrice || investment.purchasePrice)).toFixed(2)}</td>
+                            <td class="${gainLossClass}">$${investment.gainLoss || '0.00'}</td>
+                            <td class="${gainLossPercentClass}">${investment.gainLossPercent || '0.00'}%</td>
+                        </tr>
+                    `;
+                });
+                
+                summaryHTML += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            } else {
+                summaryHTML += `
+                    <div class="no-investments">
+                        <h3>No tienes inversiones aún</h3>
+                        <p>¡Comienza comprando tu primera acción!</p>
+                        <button onclick="window.location.href='buy-stocks.html'" style="background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">
+                            Comprar Acciones
+                        </button>
+                    </div>
+                `;
+            }
+            
+            contentDiv.innerHTML = summaryHTML;
+            
+            // Create charts after DOM is updated
+            if (investments.length > 0) {
+                setTimeout(() => {
+                    createPortfolioCharts(investments, portfolio);
+                }, 100);
+            }
+        }
+        
+        function generatePortfolioStory(portfolio, investments) {
+            const totalValue = parseFloat(portfolio.totalValue);
+            const totalInvested = parseFloat(portfolio.totalInvested);
+            const totalReturn = parseFloat(portfolio.totalReturn);
+            const returnPercentage = parseFloat(portfolio.returnPercentage);
+            
+            let story = `Has construido un portfolio con <span class="highlight">${investments.length} ${investments.length === 1 ? 'inversión' : 'inversiones'}</span> `;
+            story += `por un valor total de <span class="highlight">$${totalValue.toLocaleString()}</span>. `;
+            
+            if (totalReturn > 0) {
+                story += `¡Excelente trabajo! Tu portfolio ha generado una ganancia de <span class="highlight">$${totalReturn.toLocaleString()}</span> `;
+                story += `(${returnPercentage.toFixed(1)}%), mostrando que tus decisiones de inversión están dando frutos. `;
+            } else if (totalReturn < 0) {
+                story += `Actualmente tu portfolio tiene una pérdida de <span class="highlight">$${Math.abs(totalReturn).toLocaleString()}</span> `;
+                story += `(${Math.abs(returnPercentage).toFixed(1)}%), pero recuerda que las inversiones fluctúan - mantén una perspectiva a largo plazo. `;
+            } else {
+                story += `Tu portfolio está equilibrado sin ganancias ni pérdidas significativas en este momento. `;
+            }
+            
+            // Find best and worst performing stocks
+            if (investments.length > 1) {
+                const sortedByPerformance = investments
+                    .filter(inv => inv.gainLossPercent !== undefined)
+                    .sort((a, b) => parseFloat(b.gainLossPercent) - parseFloat(a.gainLossPercent));
+                
+                if (sortedByPerformance.length > 0) {
+                    const bestStock = sortedByPerformance[0];
+                    const worstStock = sortedByPerformance[sortedByPerformance.length - 1];
+                    
+                    if (parseFloat(bestStock.gainLossPercent) > 0) {
+                        story += `Tu mejor inversión es <span class="highlight">${bestStock.symbol}</span> con un rendimiento del ${bestStock.gainLossPercent}%. `;
+                    }
+                    
+                    if (parseFloat(worstStock.gainLossPercent) < 0 && bestStock.symbol !== worstStock.symbol) {
+                        story += `Considera revisar <span class="highlight">${worstStock.symbol}</span> que está en -${Math.abs(parseFloat(worstStock.gainLossPercent)).toFixed(1)}%. `;
+                    }
+                }
+            }
+            
+            story += `¡Sigue invirtiendo de manera inteligente y diversificada!`;
+            
+            return story;
+        }
+        
+        function createPortfolioCharts(investments, portfolio) {
+            // Destroy existing charts
+            Object.values(portfolioCharts).forEach(chart => {
+                if (chart) chart.destroy();
+            });
+            
+            // Stock Distribution Chart
+            const stockDistCtx = document.getElementById('stockDistributionChart');
+            if (stockDistCtx) {
+                const stockData = investments.map(inv => ({
+                    label: inv.symbol,
+                    value: parseFloat(inv.currentValue || (inv.quantity * parseFloat(inv.currentPrice || inv.purchasePrice))),
+                    color: generateColor(inv.symbol)
+                }));
+                
+                portfolioCharts.stockDistribution = new Chart(stockDistCtx, {
+                    type: 'pie',
+                    data: {
+                        labels: stockData.map(item => item.label),
+                        datasets: [{
+                            data: stockData.map(item => item.value),
+                            backgroundColor: stockData.map(item => item.color),
+                            borderWidth: 2,
+                            borderColor: '#fff'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    padding: 15,
+                                    usePointStyle: true,
+                                    font: {
+                                        size: 12
+                                    }
+                                }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const value = context.parsed;
+                                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                        const percentage = ((value / total) * 100).toFixed(1);
+                                        return `${context.label}: $${value.toLocaleString()} (${percentage}%)`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Performance Chart (Gains/Losses)
+            const performanceCtx = document.getElementById('performanceChart');
+            if (performanceCtx) {
+                const gainers = investments.filter(inv => parseFloat(inv.gainLoss || 0) > 0);
+                const losers = investments.filter(inv => parseFloat(inv.gainLoss || 0) < 0);
+                const neutral = investments.filter(inv => parseFloat(inv.gainLoss || 0) === 0);
+                
+                const totalGains = gainers.reduce((sum, inv) => sum + parseFloat(inv.gainLoss || 0), 0);
+                const totalLosses = Math.abs(losers.reduce((sum, inv) => sum + parseFloat(inv.gainLoss || 0), 0));
+                const neutralValue = neutral.reduce((sum, inv) => sum + parseFloat(inv.currentValue || (inv.quantity * parseFloat(inv.currentPrice || inv.purchasePrice))), 0);
+                
+                const performanceData = [];
+                const performanceLabels = [];
+                const performanceColors = [];
+                
+                if (totalGains > 0) {
+                    performanceData.push(totalGains);
+                    performanceLabels.push('Ganancias');
+                    performanceColors.push('#28a745');
+                }
+                
+                if (totalLosses > 0) {
+                    performanceData.push(totalLosses);
+                    performanceLabels.push('Pérdidas');
+                    performanceColors.push('#dc3545');
+                }
+                
+                if (neutralValue > 0) {
+                    performanceData.push(neutralValue);
+                    performanceLabels.push('Sin Cambio');
+                    performanceColors.push('#6c757d');
+                }
+                
+                portfolioCharts.performance = new Chart(performanceCtx, {
+                    type: 'pie',
+                    data: {
+                        labels: performanceLabels,
+                        datasets: [{
+                            data: performanceData,
+                            backgroundColor: performanceColors,
+                            borderWidth: 2,
+                            borderColor: '#fff'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    padding: 15,
+                                    usePointStyle: true,
+                                    font: {
+                                        size: 12
+                                    }
+                                }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const value = context.parsed;
+                                        return `${context.label}: $${value.toLocaleString()}`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+        
+        function generateColor(seed) {
+            // Generate consistent colors based on stock symbol
+            const colors = [
+                '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', 
+                '#9966FF', '#FF9F40', '#FF6384', '#C9CBCF',
+                '#4BC0C0', '#FF6384', '#36A2EB', '#FFCE56'
+            ];
+            
+            let hash = 0;
+            for (let i = 0; i < seed.length; i++) {
+                hash = seed.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            
+            return colors[Math.abs(hash) % colors.length];
+        }
+        
+        async function loadInvestments() {
+            toggleInvestments();
+        }
+        
+        function loadMarket() {
+            window.location.href = 'market.html';
+        }
+
+        let investmentsVisible = false;
+        let investmentCharts = {};
+        let investmentData = [];
+        let selectedInvestments = new Set();
+        
+        function toggleInvestments() {
+            const panel = document.getElementById('investmentsPanel');
+            if (investmentsVisible) {
+                closeInvestments();
+            } else {
+                panel.style.display = 'block';
+                investmentsVisible = true;
+                loadInvestmentsAnalysis();
+            }
+        }
+        
+        function closeInvestments() {
+            // Destroy charts when closing
+            Object.values(investmentCharts).forEach(chart => {
+                if (chart) chart.destroy();
+            });
+            investmentCharts = {};
+            
+            document.getElementById('investmentsPanel').style.display = 'none';
+            investmentsVisible = false;
+        }
+        
+        async function loadInvestmentsAnalysis() {
+            const contentDiv = document.getElementById('investmentsContent');
+            contentDiv.innerHTML = '<div class="loading">Cargando análisis de inversiones...</div>';
+            
+            try {
+                const response = await fetch('/api/investments/', {
+                    headers: { 'x-user-id': userId }
+                });
+                
+                const result = await response.json();
+                
+                if (result.success && result.data.length > 0) {
+                    investmentData = result.data;
+                    selectedInvestments = new Set(investmentData.map(inv => inv.symbol));
+                    displayInvestmentsAnalysis(investmentData);
+                } else {
+                    contentDiv.innerHTML = `
+                        <div class="no-investments">
+                            <h3>No tienes inversiones para analizar</h3>
+                            <p>¡Comienza comprando tu primera acción!</p>
+                            <button onclick="window.location.href='buy-stocks.html'" style="background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">
+                                Comprar Acciones
+                            </button>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                contentDiv.innerHTML = '<div class="error">Error de conexión al cargar las inversiones</div>';
+                console.error('Error loading investments:', error);
+            }
+        }
+        
+        function displayInvestmentsAnalysis(investments) {
+            const contentDiv = document.getElementById('investmentsContent');
+            
+            // Investment Summary
+            const totalInvested = investments.reduce((sum, inv) => sum + parseFloat(inv.totalInvested), 0);
+            const totalValue = investments.reduce((sum, inv) => sum + parseFloat(inv.currentValue || 0), 0);
+            const totalGainLoss = totalValue - totalInvested;
+            const avgReturn = investments.length > 0 ? 
+                investments.reduce((sum, inv) => sum + parseFloat(inv.gainLossPercent || 0), 0) / investments.length : 0;
+            
+            let analysisHTML = `
+                <div class="investment-summary">
+                    <div class="summary-item">
+                        <h4>Total de Inversiones</h4>
+                        <div class="summary-value">${investments.length}</div>
+                    </div>
+                    <div class="summary-item">
+                        <h4>Capital Invertido</h4>
+                        <div class="summary-value">$${totalInvested.toLocaleString()}</div>
+                    </div>
+                    <div class="summary-item">
+                        <h4>Valor Actual</h4>
+                        <div class="summary-value">$${totalValue.toLocaleString()}</div>
+                    </div>
+                    <div class="summary-item">
+                        <h4>Ganancia/Pérdida Total</h4>
+                        <div class="summary-value ${totalGainLoss >= 0 ? 'gain-positive' : 'gain-negative'}">
+                            $${totalGainLoss.toLocaleString()}
+                        </div>
+                    </div>
+                    <div class="summary-item">
+                        <h4>Rendimiento Promedio</h4>
+                        <div class="summary-value ${avgReturn >= 0 ? 'gain-positive' : 'gain-negative'}">
+                            ${avgReturn.toFixed(2)}%
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="filter-section">
+                    <h4>Filtros y Configuración</h4>
+                    <div class="filter-row">
+                        <div class="filter-group">
+                            <label>Período de Tiempo</label>
+                            <select id="timePeriod" onchange="updateChart()">
+                                <option value="1d">1 Día</option>
+                                <option value="1w" selected>1 Semana</option>
+                                <option value="1m">1 Mes</option>
+                                <option value="3m">3 Meses</option>
+                                <option value="6m">6 Meses</option>
+                                <option value="1y">1 Año</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>Fecha Desde</label>
+                            <input type="date" id="dateFrom" onchange="updateChart()">
+                        </div>
+                        <div class="filter-group">
+                            <label>Fecha Hasta</label>
+                            <input type="date" id="dateTo" onchange="updateChart()">
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 15px;">
+                        <label style="font-weight: bold; margin-bottom: 10px; display: block;">Seleccionar Inversiones a Mostrar:</label>
+                        <div class="investment-checkboxes" id="investmentCheckboxes">
+                            ${investments.map(investment => {
+                                const performance = parseFloat(investment.gainLossPercent || 0);
+                                const performanceClass = performance > 0 ? 'performance-positive' : 
+                                                      performance < 0 ? 'performance-negative' : 'performance-neutral';
+                                
+                                return `
+                                    <div class="checkbox-item">
+                                        <input type="checkbox" id="inv_${investment.symbol}" 
+                                               value="${investment.symbol}" 
+                                               onchange="toggleInvestment('${investment.symbol}')" checked>
+                                        <label for="inv_${investment.symbol}">
+                                            ${investment.symbol} - ${investment.companyName || 'N/A'}
+                                            <span class="performance-indicator ${performanceClass}"></span>
+                                            <small>(${performance.toFixed(1)}%)</small>
+                                        </label>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="chart-controls">
+                    <h4>Gráfico de Series de Tiempo</h4>
+                    <div class="chart-type-buttons">
+                        <button class="chart-type-btn active" onclick="setChartType('value')">Valor</button>
+                        <button class="chart-type-btn" onclick="setChartType('percentage')">Porcentaje</button>
+                        <button class="chart-type-btn" onclick="setChartType('volume')">Volumen</button>
+                    </div>
+                </div>
+                
+                <div class="time-series-chart">
+                    <canvas id="timeSeriesChart"></canvas>
+                </div>
+                
+                <div class="investments-table">
+                    <h4>Detalle de Inversiones</h4>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Símbolo</th>
+                                <th>Empresa</th>
+                                <th>Cantidad</th>
+                                <th>Precio Compra</th>
+                                <th>Precio Actual</th>
+                                <th>Valor Total</th>
+                                <th>Ganancia/Pérdida</th>
+                                <th>%</th>
+                                <th>Fecha Compra</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${investments.map(investment => {
+                                const gainLossClass = parseFloat(investment.gainLoss || 0) >= 0 ? 'gain-positive' : 'gain-negative';
+                                const gainLossPercentClass = parseFloat(investment.gainLossPercent || 0) >= 0 ? 'gain-positive' : 'gain-negative';
+                                
+                                return `
+                                    <tr>
+                                        <td><strong>${investment.symbol}</strong></td>
+                                        <td>${investment.companyName || 'N/A'}</td>
+                                        <td>${investment.quantity}</td>
+                                        <td>$${parseFloat(investment.purchasePrice).toFixed(2)}</td>
+                                        <td>$${parseFloat(investment.currentPrice || investment.purchasePrice).toFixed(2)}</td>
+                                        <td>$${investment.currentValue || (investment.quantity * parseFloat(investment.currentPrice || investment.purchasePrice)).toFixed(2)}</td>
+                                        <td class="${gainLossClass}">$${investment.gainLoss || '0.00'}</td>
+                                        <td class="${gainLossPercentClass}">${investment.gainLossPercent || '0.00'}%</td>
+                                        <td>${new Date(investment.purchaseDate || investment.createdAt).toLocaleDateString()}</td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            
+            contentDiv.innerHTML = analysisHTML;
+            
+            // Set default dates
+            const today = new Date();
+            const oneWeekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+            document.getElementById('dateFrom').value = oneWeekAgo.toISOString().split('T')[0];
+            document.getElementById('dateTo').value = today.toISOString().split('T')[0];
+            
+            // Create initial chart
+            setTimeout(() => {
+                createTimeSeriesChart();
+            }, 100);
+        }
+        
+        function toggleInvestment(symbol) {
+            const checkbox = document.getElementById(`inv_${symbol}`);
+            if (checkbox.checked) {
+                selectedInvestments.add(symbol);
+            } else {
+                selectedInvestments.delete(symbol);
+            }
+            updateChart();
+        }
+        
+        function setChartType(type) {
+            // Update active button
+            document.querySelectorAll('.chart-type-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Store chart type and update
+            window.currentChartType = type;
+            updateChart();
+        }
+        
+        function createTimeSeriesChart() {
+            window.currentChartType = 'value';
+            updateChart();
+        }
+        
+        async function updateChart() {
+            const timePeriod = document.getElementById('timePeriod').value;
+            const dateFrom = document.getElementById('dateFrom').value;
+            const dateTo = document.getElementById('dateTo').value;
+            const chartType = window.currentChartType || 'value';
+            
+            const ctx = document.getElementById('timeSeriesChart');
+            if (!ctx) return;
+            
+            // Destroy existing chart
+            if (investmentCharts.timeSeries) {
+                investmentCharts.timeSeries.destroy();
+            }
+            
+            // Generate time series data (simulated for demo)
+            const datasets = Array.from(selectedInvestments).map(symbol => {
+                const investment = investmentData.find(inv => inv.symbol === symbol);
+                if (!investment) return null;
+                
+                const data = generateTimeSeriesData(investment, timePeriod, dateFrom, dateTo, chartType);
+                
+                return {
+                    label: `${symbol} - ${investment.companyName || 'N/A'}`,
+                    data: data,
+                    borderColor: generateColor(symbol),
+                    backgroundColor: generateColor(symbol) + '20',
+                    borderWidth: 2,
+                    fill: false,
+                    tension: 0.1
+                };
+            }).filter(Boolean);
+            
+            investmentCharts.timeSeries = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: timePeriod === '1d' ? 'hour' : 'day',
+                                displayFormats: {
+                                    hour: 'HH:mm',
+                                    day: 'MMM dd',
+                                    week: 'MMM dd',
+                                    month: 'MMM yyyy'
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Fecha'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: chartType === 'value' ? 'Valor ($)' : 
+                                      chartType === 'percentage' ? 'Cambio (%)' : 'Volumen'
+                            },
+                            beginAtZero: chartType === 'volume'
+                        }
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: `Evolución de Inversiones - ${chartType === 'value' ? 'Valor' : 
+                                                                chartType === 'percentage' ? 'Porcentaje' : 'Volumen'}`
+                        },
+                        legend: {
+                            position: 'top',
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.parsed.y;
+                                    const prefix = chartType === 'value' ? '$' : 
+                                                 chartType === 'percentage' ? '' : '';
+                                    const suffix = chartType === 'percentage' ? '%' : '';
+                                    return `${context.dataset.label}: ${prefix}${value.toFixed(2)}${suffix}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function generateTimeSeriesData(investment, period, dateFrom, dateTo, chartType) {
+            const currentPrice = parseFloat(investment.currentPrice || investment.purchasePrice);
+            const purchasePrice = parseFloat(investment.purchasePrice);
+            const quantity = investment.quantity;
+            
+            // Generate points based on period
+            const points = [];
+            const startDate = dateFrom ? new Date(dateFrom) : getStartDate(period);
+            const endDate = dateTo ? new Date(dateTo) : new Date();
+            
+            // Ensure we have valid dates
+            if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+                return [];
+            }
+            
+            const daysDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+            const pointsCount = Math.min(Math.max(daysDiff, 5), 50); // Between 5 and 50 points
+            
+            for (let i = 0; i <= pointsCount; i++) {
+                const date = new Date(startDate.getTime() + (i / pointsCount) * (endDate - startDate));
+                
+                // Simulate price movement (in real app, this would come from historical data API)
+                const progress = i / pointsCount;
+                const volatility = 0.02; // 2% daily volatility
+                const trend = (currentPrice - purchasePrice) * progress;
+                const randomWalk = (Math.random() - 0.5) * purchasePrice * volatility;
+                const priceVariation = Math.max(0.01, purchasePrice + trend + randomWalk);
+                
+                let value;
+                switch (chartType) {
+                    case 'value':
+                        value = priceVariation * quantity;
+                        break;
+                    case 'percentage':
+                        value = ((priceVariation - purchasePrice) / purchasePrice) * 100;
+                        break;
+                    case 'volume':
+                        value = Math.floor(Math.random() * 1000000) + 100000; // Simulated volume
+                        break;
+                    default:
+                        value = priceVariation * quantity;
+                }
+                
+                points.push({
+                    x: date.getTime(), // Use timestamp instead of Date object
+                    y: Math.max(0, value)
+                });
+            }
+            
+            return points;
+        }
+        
+        function getStartDate(period) {
+            const now = new Date();
+            switch (period) {
+                case '1d': return new Date(now.getTime() - 24 * 60 * 60 * 1000);
+                case '1w': return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                case '1m': return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+                case '3m': return new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+                case '6m': return new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
+                case '1y': return new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+                default: return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            }
+        }
+    </script>
+</body>
+</html>

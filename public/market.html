@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mercado - Portfolio Management</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; }
+        .back-btn { background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; }
+        .back-btn:hover { background: #5a6268; }
+        .refresh-btn { background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-left: 10px; }
+        .refresh-btn:hover { background: #218838; }
+        .market-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .card h3 { margin-top: 0; color: #333; border-bottom: 2px solid #007bff; padding-bottom: 10px; }
+        .stock-item { padding: 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+        .stock-item:last-child { border-bottom: none; }
+        .stock-info { flex-grow: 1; }
+        .stock-symbol { font-weight: bold; font-size: 16px; color: #333; }
+        .stock-name { color: #666; font-size: 14px; margin-top: 2px; }
+        .stock-price { text-align: right; }
+        .price { font-size: 18px; font-weight: bold; color: #333; }
+        .change-positive { color: #28a745; }
+        .change-negative { color: #dc3545; }
+        .change { font-size: 14px; }
+        .search-section { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .search-box { display: flex; gap: 10px; margin-bottom: 15px; }
+        .search-input { flex-grow: 1; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
+        .search-btn { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; }
+        .search-btn:hover { background: #0056b3; }
+        .loading { text-align: center; padding: 20px; color: #666; }
+        .error { background: #f8d7da; color: #721c24; padding: 15px; border-radius: 4px; margin: 10px 0; border: 1px solid #f5c6cb; }
+        .timestamp { color: #666; font-size: 12px; text-align: right; margin-top: 10px; }
+        .market-status { display: inline-block; padding: 5px 10px; border-radius: 15px; font-size: 12px; font-weight: bold; }
+        .market-open { background: #d4edda; color: #155724; }
+        .market-closed { background: #f8d7da; color: #721c24; }
+        .indices-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .index-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px; text-align: center; }
+        .index-name { font-size: 14px; opacity: 0.9; }
+        .index-value { font-size: 24px; font-weight: bold; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Mercado Financiero</h1>
+            <div>
+                <button class="refresh-btn" onclick="loadMarketData()">🔄 Actualizar</button>
+                <button class="back-btn" onclick="window.location.href='dashboard.html'">Volver al Dashboard</button>
+            </div>
+        </div>
+
+        <!-- Market Status -->
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h3>Estado del Mercado</h3>
+                <span id="marketStatus" class="market-status market-open">Abierto</span>
+            </div>
+            <div id="timestamp" class="timestamp"></div>
+        </div>
+
+        <!-- Market Indices -->
+        <div class="card">
+            <h3>Índices Principales</h3>
+            <div id="indicesContainer" class="indices-grid">
+                <div class="loading">Cargando índices...</div>
+            </div>
+        </div>
+
+        <!-- Search Stocks -->
+        <div class="search-section">
+            <h3>Buscar Acciones</h3>
+            <div class="search-box">
+                <input type="text" id="searchInput" class="search-input" placeholder="Buscar por símbolo o nombre (ej: AAPL, Apple, GOOGL)">
+                <button class="search-btn" onclick="searchStocks()">Buscar</button>
+            </div>
+            <div id="searchResults"></div>
+        </div>
+
+        <!-- Popular Stocks -->
+        <div class="market-grid">
+            <div class="card">
+                <h3>Acciones Populares</h3>
+                <div id="popularStocks">
+                    <div class="loading">Cargando acciones populares...</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Tecnología</h3>
+                <div id="techStocks">
+                    <div class="loading">Cargando acciones de tecnología...</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Banca y Finanzas</h3>
+                <div id="financeStocks">
+                    <div class="loading">Cargando acciones financieras...</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="errorMessage"></div>
+    </div>
+
+    <script>
+        const userId = localStorage.getItem('userId');
+        let refreshInterval;
+
+        if (!userId) {
+            window.location.href = 'login.html';
+        }
+
+        // Popular stock symbols for different sectors
+        const stockCategories = {
+            popular: ['AAPL', 'GOOGL', 'MSFT', 'AMZN', 'TSLA'],
+            tech: ['NVDA', 'META', 'NFLX', 'CRM', 'ADBE'],
+            finance: ['JPM', 'BAC', 'WFC', 'GS', 'MS']
+        };
+
+        async function loadMarketData() {
+            try {
+                // Update timestamp
+                document.getElementById('timestamp').textContent = `Última actualización: ${new Date().toLocaleString()}`;
+                
+                // Load indices
+                await loadIndices();
+                
+                // Load stock categories
+                await loadStockCategory('popular', 'popularStocks');
+                await loadStockCategory('tech', 'techStocks');
+                await loadStockCategory('finance', 'financeStocks');
+                
+                showError('');
+            } catch (error) {
+                showError('Error cargando datos del mercado. Algunos datos pueden no estar actualizados.');
+                console.error('Error loading market data:', error);
+            }
+        }
+
+        async function loadIndices() {
+            try {
+                const response = await fetch('/api/market/market-data');
+                const result = await response.json();
+                
+                const container = document.getElementById('indicesContainer');
+                
+                if (result.success && result.data.indices && result.data.indices.length > 0) {
+                    container.innerHTML = result.data.indices.map(index => {
+                        const changeClass = index.change >= 0 ? 'change-positive' : 'change-negative';
+                        const changeSign = index.change >= 0 ? '+' : '';
+                        
+                        return `
+                            <div class="index-card">
+                                <div class="index-name">${index.shortName || index.symbol}</div>
+                                <div class="index-value">$${index.price.toFixed(2)}</div>
+                                <div class="${changeClass}">
+                                    ${changeSign}${index.change.toFixed(2)} (${changeSign}${index.changePercent.toFixed(2)}%)
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                } else {
+                    container.innerHTML = '<div class="loading">No se pudieron cargar los índices</div>';
+                }
+            } catch (error) {
+                document.getElementById('indicesContainer').innerHTML = '<div class="error">Error cargando índices</div>';
+            }
+        }
+
+        async function loadStockCategory(category, containerId) {
+            const container = document.getElementById(containerId);
+            
+            try {
+                const stocks = stockCategories[category];
+                const stockPromises = stocks.map(symbol => getStockPrice(symbol));
+                const stocksData = await Promise.all(stockPromises);
+                
+                container.innerHTML = stocksData.map(stock => createStockItem(stock)).join('');
+            } catch (error) {
+                container.innerHTML = '<div class="error">Error cargando acciones</div>';
+            }
+        }
+
+        async function getStockPrice(symbol) {
+            try {
+                const response = await fetch(`/api/market/stock-price/${symbol}`);
+                const result = await response.json();
+                return result.success ? result.data : null;
+            } catch (error) {
+                return null;
+            }
+        }
+
+        function createStockItem(stock) {
+            if (!stock) return '<div class="stock-item">Error cargando datos</div>';
+            
+            const changeClass = stock.change >= 0 ? 'change-positive' : 'change-negative';
+            const changeSign = stock.change >= 0 ? '+' : '';
+            
+            return `
+                <div class="stock-item" onclick="showStockDetails('${stock.symbol}')">
+                    <div class="stock-info">
+                        <div class="stock-symbol">${stock.symbol}</div>
+                        <div class="stock-name">${stock.shortName}</div>
+                    </div>
+                    <div class="stock-price">
+                        <div class="price">$${stock.price.toFixed(2)}</div>
+                        <div class="change ${changeClass}">
+                            ${changeSign}${stock.change.toFixed(2)} (${changeSign}${stock.changePercent.toFixed(2)}%)
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function searchStocks() {
+            const query = document.getElementById('searchInput').value.trim();
+            const resultsContainer = document.getElementById('searchResults');
+            
+            if (!query) {
+                resultsContainer.innerHTML = '';
+                return;
+            }
+            
+            try {
+                resultsContainer.innerHTML = '<div class="loading">Buscando...</div>';
+                
+                const response = await fetch(`/api/market/search-stocks?query=${encodeURIComponent(query)}`);
+                const result = await response.json();
+                
+                if (result.success && result.data.length > 0) {
+                    const stockPromises = result.data.slice(0, 5).map(async (stock) => {
+                        const stockData = await getStockPrice(stock.symbol);
+                        return stockData ? createStockItem(stockData) : `
+                            <div class="stock-item">
+                                <div class="stock-info">
+                                    <div class="stock-symbol">${stock.symbol}</div>
+                                    <div class="stock-name">${stock.name}</div>
+                                </div>
+                                <div class="stock-price">
+                                    <div class="price">Cargando...</div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    const stockItems = await Promise.all(stockPromises);
+                    resultsContainer.innerHTML = `
+                        <div class="card">
+                            <h4>Resultados de búsqueda</h4>
+                            ${stockItems.join('')}
+                        </div>
+                    `;
+                } else {
+                    resultsContainer.innerHTML = '<div class="error">No se encontraron resultados</div>';
+                }
+            } catch (error) {
+                resultsContainer.innerHTML = '<div class="error">Error en la búsqueda</div>';
+            }
+        }
+
+        function showStockDetails(symbol) {
+            // Store the selected stock and redirect to buy page
+            localStorage.setItem('selectedStock', symbol);
+            window.location.href = 'buy-stocks.html';
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.innerHTML = message ? `<div class="error">${message}</div>` : '';
+        }
+
+        // Search on Enter key
+        document.getElementById('searchInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchStocks();
+            }
+        });
+
+        // Auto-refresh every 5 minutes
+        function startAutoRefresh() {
+            refreshInterval = setInterval(() => {
+                loadMarketData();
+            }, 5 * 60 * 1000); // 5 minutes
+        }
+
+        function stopAutoRefresh() {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+        }
+
+        // Load initial data
+        loadMarketData();
+        startAutoRefresh();
+
+        // Stop auto-refresh when leaving the page
+        window.addEventListener('beforeunload', stopAutoRefresh);
+    </script>
+</body>
+</html>

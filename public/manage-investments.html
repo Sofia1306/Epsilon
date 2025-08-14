@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestionar Inversiones - Portfolio Management</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; }
+        .cash-info { background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 15px; border-radius: 8px; text-align: center; }
+        .cash-balance { font-size: 24px; font-weight: bold; }
+        .cash-label { font-size: 14px; opacity: 0.9; }
+        .investments-grid { display: grid; gap: 20px; }
+        .investment-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .investment-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 15px; margin-bottom: 15px; }
+        .stock-symbol { font-size: 24px; font-weight: bold; color: #333; }
+        .company-name { color: #666; font-size: 14px; }
+        .current-price { font-size: 20px; font-weight: bold; }
+        .price-change { font-size: 14px; }
+        .change-positive { color: #28a745; }
+        .change-negative { color: #dc3545; }
+        .investment-details { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .detail-item { text-align: center; }
+        .detail-value { font-size: 18px; font-weight: bold; color: #333; }
+        .detail-label { font-size: 12px; color: #666; }
+        .sell-section { background: #f8f9fa; padding: 15px; border-radius: 8px; }
+        .form-group { margin-bottom: 15px; }
+        .form-row { display: flex; gap: 10px; align-items: end; }
+        .form-row input { flex: 1; }
+        label { display: block; margin-bottom: 5px; color: #555; font-weight: bold; }
+        input[type="number"] { padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+        .btn { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .btn-sell { background: #dc3545; color: white; }
+        .btn-sell:hover { background: #c82333; }
+        .btn-secondary { background: #6c757d; color: white; }
+        .btn-success { background: #28a745; color: white; }
+        .message { padding: 10px; border-radius: 4px; margin: 10px 0; }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .loading { text-align: center; padding: 40px; color: #666; }
+        .no-investments { text-align: center; padding: 40px; color: #666; }
+        .total-estimate { font-size: 16px; font-weight: bold; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Gestionar Inversiones</h1>
+            <div style="display: flex; gap: 15px; align-items: center;">
+                <div class="cash-info">
+                    <div class="cash-label">Dinero Disponible</div>
+                    <div class="cash-balance" id="cashBalance">$0.00</div>
+                </div>
+                <button class="btn btn-success" onclick="showAddCashModal()">💰 Agregar Dinero</button>
+                <button class="btn btn-secondary" onclick="window.location.href='dashboard.html'">Volver</button>
+            </div>
+        </div>
+
+        <div id="investmentsList" class="investments-grid">
+            <div class="loading">Cargando inversiones...</div>
+        </div>
+
+        <div id="message"></div>
+    </div>
+
+    <!-- Add Cash Modal -->
+    <div id="addCashModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 8px; min-width: 300px;">
+            <h3>Agregar Dinero a la Cuenta</h3>
+            <div class="form-group">
+                <label for="cashAmount">Cantidad:</label>
+                <input type="number" id="cashAmount" min="1" step="0.01" placeholder="0.00">
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button class="btn btn-secondary" onclick="closeAddCashModal()">Cancelar</button>
+                <button class="btn btn-success" onclick="addCash()">Agregar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const userId = localStorage.getItem('userId');
+
+        if (!userId) {
+            window.location.href = 'login.html';
+        }
+
+        async function loadInvestments() {
+            try {
+                const [investmentsResponse, cashResponse] = await Promise.all([
+                    fetch('/api/investments/', {
+                        headers: { 'x-user-id': userId }
+                    }),
+                    fetch('/api/investments/cash/balance', {
+                        headers: { 'x-user-id': userId }
+                    })
+                ]);
+
+                const investmentsResult = await investmentsResponse.json();
+                const cashResult = await cashResponse.json();
+
+                if (cashResult.success) {
+                    document.getElementById('cashBalance').textContent = `$${parseFloat(cashResult.data.cashBalance).toLocaleString()}`;
+                }
+
+                if (investmentsResult.success && investmentsResult.data.length > 0) {
+                    displayInvestments(investmentsResult.data);
+                } else {
+                    document.getElementById('investmentsList').innerHTML = `
+                        <div class="no-investments">
+                            <h3>No tienes inversiones aún</h3>
+                            <p>¡Comienza comprando tu primera acción!</p>
+                            <button class="btn btn-success" onclick="window.location.href='buy-stocks.html'">
+                                Comprar Acciones
+                            </button>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading investments:', error);
+                showMessage('Error cargando inversiones', 'error');
+            }
+        }
+
+        function displayInvestments(investments) {
+            const container = document.getElementById('investmentsList');
+            
+            container.innerHTML = investments.map(investment => {
+                const currentValue = parseFloat(investment.currentValue || 0);
+                const gainLoss = parseFloat(investment.gainLoss || 0);
+                const gainLossPercent = parseFloat(investment.gainLossPercent || 0);
+                const gainLossClass = gainLoss >= 0 ? 'change-positive' : 'change-negative';
+                
+                return `
+                    <div class="investment-card">
+                        <div class="investment-header">
+                            <div>
+                                <div class="stock-symbol">${investment.symbol}</div>
+                                <div class="company-name">${investment.companyName || 'N/A'}</div>
+                            </div>
+                            <div style="text-align: right;">
+                                <div class="current-price">$${parseFloat(investment.currentPrice || investment.purchasePrice).toFixed(2)}</div>
+                                <div class="price-change ${gainLossClass}">
+                                    ${gainLoss >= 0 ? '+' : ''}$${gainLoss} (${gainLossPercent >= 0 ? '+' : ''}${gainLossPercent}%)
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="investment-details">
+                            <div class="detail-item">
+                                <div class="detail-value">${investment.quantity}</div>
+                                <div class="detail-label">Acciones</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-value">$${parseFloat(investment.purchasePrice).toFixed(2)}</div>
+                                <div class="detail-label">Precio Promedio</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-value">$${parseFloat(investment.totalInvested).toFixed(2)}</div>
+                                <div class="detail-label">Total Invertido</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-value">$${currentValue.toFixed(2)}</div>
+                                <div class="detail-label">Valor Actual</div>
+                            </div>
+                        </div>
+                        
+                        <div class="sell-section">
+                            <h4>Vender Acciones</h4>
+                            <div class="form-row">
+                                <div style="flex: 2;">
+                                    <label for="sellQuantity_${investment.id}">Cantidad a vender:</label>
+                                    <input type="number" id="sellQuantity_${investment.id}" 
+                                           min="1" max="${investment.quantity}" value="1"
+                                           onchange="updateSellEstimate(${investment.id}, ${investment.currentPrice || investment.purchasePrice})">
+                                </div>
+                                <button class="btn btn-sell" onclick="sellStock(${investment.id})">
+                                    Vender
+                                </button>
+                            </div>
+                            <div class="total-estimate" id="sellEstimate_${investment.id}">
+                                Estimado: $${parseFloat(investment.currentPrice || investment.purchasePrice).toFixed(2)}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateSellEstimate(investmentId, currentPrice) {
+            const quantity = parseInt(document.getElementById(`sellQuantity_${investmentId}`).value) || 0;
+            const estimate = (quantity * currentPrice).toFixed(2);
+            document.getElementById(`sellEstimate_${investmentId}`).textContent = `Estimado: $${estimate}`;
+        }
+
+        async function sellStock(investmentId) {
+            const quantityInput = document.getElementById(`sellQuantity_${investmentId}`);
+            const quantity = parseInt(quantityInput.value);
+            
+            if (!quantity || quantity <= 0) {
+                showMessage('Ingresa una cantidad válida para vender', 'error');
+                return;
+            }
+            
+            if (!confirm(`¿Estás seguro de que quieres vender ${quantity} acciones?`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/investments/${investmentId}/sell`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-user-id': userId
+                    },
+                    body: JSON.stringify({ quantity })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showMessage(result.message, 'success');
+                    
+                    // Show profit/loss information
+                    const profitLoss = parseFloat(result.data.profitLoss);
+                    const profitLossPercent = parseFloat(result.data.profitLossPercent);
+                    const profitLossClass = profitLoss >= 0 ? 'success' : 'error';
+                    const profitLossText = profitLoss >= 0 ? 'Ganancia' : 'Pérdida';
+                    
+                    showMessage(`
+                        ${result.message}<br>
+                        ${profitLossText}: ${profitLoss >= 0 ? '+' : ''}$${profitLoss} (${profitLossPercent >= 0 ? '+' : ''}${profitLossPercent}%)<br>
+                        Nuevo balance: $${parseFloat(result.data.newCashBalance).toLocaleString()}
+                    `, profitLossClass);
+                    
+                    // Reload investments and cash balance
+                    loadInvestments();
+                } else {
+                    showMessage(result.message, 'error');
+                }
+            } catch (error) {
+                console.error('Error selling stock:', error);
+                showMessage('Error vendiendo acciones', 'error');
+            }
+        }
+
+        function showAddCashModal() {
+            document.getElementById('addCashModal').style.display = 'block';
+        }
+
+        function closeAddCashModal() {
+            document.getElementById('addCashModal').style.display = 'none';
+            document.getElementById('cashAmount').value = '';
+        }
+
+        async function addCash() {
+            const amount = parseFloat(document.getElementById('cashAmount').value);
+            
+            if (!amount || amount <= 0) {
+                showMessage('Ingresa una cantidad válida', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/investments/cash/add', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-user-id': userId
+                    },
+                    body: JSON.stringify({ amount })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showMessage(result.message, 'success');
+                    document.getElementById('cashBalance').textContent = `$${parseFloat(result.data.newBalance).toLocaleString()}`;
+                    closeAddCashModal();
+                } else {
+                    showMessage(result.message, 'error');
+                }
+            } catch (error) {
+                console.error('Error adding cash:', error);
+                showMessage('Error agregando dinero', 'error');
+            }
+        }
+
+        function showMessage(text, type) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.innerHTML = `<div class="message ${type}">${text}</div>`;
+            setTimeout(() => messageDiv.innerHTML = '', 8000);
+        }
+
+        // Load initial data
+        loadInvestments();
+    </script>
+</body>
+</html>
