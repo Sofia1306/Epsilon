@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comprar Acciones - Portfolio Management</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .header { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .card { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; color: #555; font-weight: bold; }
+        input, select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-right: 10px; }
+        button:hover { background: #0056b3; }
+        .stock-info { background: #f8f9fa; padding: 15px; border-radius: 4px; margin: 15px 0; }
+        .price { font-size: 24px; font-weight: bold; color: #28a745; }
+        .change-positive { color: #28a745; }
+        .change-negative { color: #dc3545; }
+        .search-results { max-height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; }
+        .search-item { padding: 10px; cursor: pointer; border-bottom: 1px solid #eee; }
+        .search-item:hover { background: #f8f9fa; }
+        .back-btn { background: #6c757d; }
+        .message { padding: 10px; border-radius: 4px; margin: 10px 0; }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Comprar Acciones</h1>
+            <div style="display: flex; gap: 15px; align-items: center;">
+                <div style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 10px 15px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 12px; opacity: 0.9;">Dinero Disponible</div>
+                    <div id="cashBalance" style="font-size: 18px; font-weight: bold;">$0.00</div>
+                </div>
+                <button class="back-btn" onclick="window.location.href='dashboard.html'">Volver al Dashboard</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>Buscar Acción</h3>
+            <div class="form-group">
+                <label for="searchStock">Símbolo o Nombre de la Empresa:</label>
+                <input type="text" id="searchStock" placeholder="Ej: AAPL, Apple, GOOGL">
+                <button onclick="searchStocks()" style="margin-top: 10px;">Buscar</button>
+            </div>
+            <div id="searchResults" class="search-results" style="display: none;"></div>
+        </div>
+
+        <div class="card" id="stockCard" style="display: none;">
+            <h3>Información de la Acción</h3>
+            <div id="stockInfo" class="stock-info"></div>
+            
+            <div class="form-group">
+                <label for="quantity">Cantidad de Acciones:</label>
+                <input type="number" id="quantity" min="1" value="1">
+            </div>
+            
+            <div id="totalCost" style="font-size: 18px; font-weight: bold; margin: 15px 0;"></div>
+            
+            <button onclick="buyStock()">Comprar Acciones</button>
+            <button onclick="clearSelection()" style="background: #6c757d;">Limpiar</button>
+        </div>
+
+        <div id="message"></div>
+    </div>
+
+    <script>
+        let selectedStock = null;
+        const userId = localStorage.getItem('userId');
+
+        if (!userId) {
+            window.location.href = 'login.html';
+        }
+
+        // Load cash balance on page load
+        async function loadCashBalance() {
+            try {
+                const response = await fetch('/api/investments/cash/balance', {
+                    headers: { 'x-user-id': userId }
+                });
+                const result = await response.json();
+                if (result.success) {
+                    document.getElementById('cashBalance').textContent = `$${parseFloat(result.data.cashBalance).toLocaleString()}`;
+                }
+            } catch (error) {
+                console.error('Error loading cash balance:', error);
+            }
+        }
+
+        async function searchStocks() {
+            const query = document.getElementById('searchStock').value.trim();
+            if (!query) return;
+
+            try {
+                const response = await fetch(`/api/market/search-stocks?query=${encodeURIComponent(query)}`);
+                const result = await response.json();
+
+                const resultsDiv = document.getElementById('searchResults');
+                
+                if (result.success && result.data.length > 0) {
+                    resultsDiv.innerHTML = result.data.map(stock => 
+                        `<div class="search-item" onclick="selectStock('${stock.symbol}')">
+                            <strong>${stock.symbol}</strong> - ${stock.name}
+                        </div>`
+                    ).join('');
+                    resultsDiv.style.display = 'block';
+                } else {
+                    resultsDiv.innerHTML = '<div class="search-item">No se encontraron resultados</div>';
+                    resultsDiv.style.display = 'block';
+                }
+            } catch (error) {
+                showMessage('Error buscando acciones', 'error');
+            }
+        }
+
+        async function selectStock(symbol) {
+            try {
+                const response = await fetch(`/api/market/stock-price/${symbol}`);
+                const result = await response.json();
+
+                if (result.success) {
+                    selectedStock = result.data;
+                    displayStockInfo();
+                    document.getElementById('searchResults').style.display = 'none';
+                    document.getElementById('stockCard').style.display = 'block';
+                    updateTotalCost();
+                }
+            } catch (error) {
+                showMessage('Error obteniendo información de la acción', 'error');
+            }
+        }
+
+        function displayStockInfo() {
+            const stockInfo = document.getElementById('stockInfo');
+            const changeClass = selectedStock.change >= 0 ? 'change-positive' : 'change-negative';
+            const changeSign = selectedStock.change >= 0 ? '+' : '';
+
+            stockInfo.innerHTML = `
+                <h4>${selectedStock.shortName} (${selectedStock.symbol})</h4>
+                <div class="price">$${selectedStock.price.toFixed(2)}</div>
+                <div class="${changeClass}">
+                    ${changeSign}${selectedStock.change.toFixed(2)} (${changeSign}${selectedStock.changePercent.toFixed(2)}%)
+                </div>
+                <div>Volumen: ${selectedStock.volume.toLocaleString()}</div>
+            `;
+        }
+
+        function updateTotalCost() {
+            const quantity = document.getElementById('quantity').value || 0;
+            if (selectedStock && quantity > 0) {
+                const total = (selectedStock.price * quantity).toFixed(2);
+                document.getElementById('totalCost').innerHTML = `Total: $${total}`;
+            }
+        }
+
+        async function buyStock() {
+            const quantity = parseInt(document.getElementById('quantity').value);
+            
+            if (!selectedStock || !quantity || quantity <= 0) {
+                showMessage('Selecciona una acción y una cantidad válida', 'error');
+                return;
+            }
+
+            const totalCost = selectedStock.price * quantity;
+            
+            try {
+                const response = await fetch('/api/investments/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-user-id': userId
+                    },
+                    body: JSON.stringify({
+                        symbol: selectedStock.symbol,
+                        quantity: quantity
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    showMessage(result.message, 'success');
+                    loadCashBalance(); // Refresh cash balance
+                    clearSelection();
+                } else {
+                    showMessage(result.message, 'error');
+                }
+            } catch (error) {
+                showMessage('Error comprando acciones', 'error');
+            }
+        }
+
+        function clearSelection() {
+            selectedStock = null;
+            document.getElementById('stockCard').style.display = 'none';
+            document.getElementById('searchStock').value = '';
+            document.getElementById('quantity').value = '1';
+            document.getElementById('searchResults').style.display = 'none';
+        }
+
+        function showMessage(text, type) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.innerHTML = `<div class="message ${type}">${text}</div>`;
+            setTimeout(() => messageDiv.innerHTML = '', 5000);
+        }
+
+        // Update total cost when quantity changes
+        document.getElementById('quantity').addEventListener('input', updateTotalCost);
+
+        // Search on Enter key
+        document.getElementById('searchStock').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchStocks();
+            }
+        });
+
+        // Load initial cash balance
+        loadCashBalance();
+    </script>
+</body>
+</html>
