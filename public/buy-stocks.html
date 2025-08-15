@@ -71,6 +71,7 @@
     <script>
         let selectedStock = null;
         const userId = localStorage.getItem('userId');
+        let isLoading = false;
 
         if (!userId) {
             window.location.href = 'login.html';
@@ -165,7 +166,19 @@
                 return;
             }
 
+            if (isLoading) {
+                showMessage('Procesando compra anterior...', 'error');
+                return;
+            }
+
+            isLoading = true;
             const totalCost = selectedStock.price * quantity;
+            
+            // Disable buy button to prevent double submission
+            const buyButton = event.target;
+            const originalText = buyButton.textContent;
+            buyButton.disabled = true;
+            buyButton.textContent = 'Comprando...';
             
             try {
                 const response = await fetch('/api/investments/', {
@@ -184,13 +197,26 @@
                 
                 if (result.success) {
                     showMessage(result.message, 'success');
-                    loadCashBalance(); // Refresh cash balance
-                    clearSelection();
+                    
+                    // Update cash balance immediately
+                    document.getElementById('cashBalance').textContent = `$${parseFloat(result.data.remainingCash).toLocaleString()}`;
+                    
+                    // Clear selection after successful purchase
+                    setTimeout(() => {
+                        clearSelection();
+                        loadCashBalance(); // Refresh to ensure accuracy
+                    }, 1000);
                 } else {
                     showMessage(result.message, 'error');
                 }
             } catch (error) {
-                showMessage('Error comprando acciones', 'error');
+                console.error('Error buying stock:', error);
+                showMessage('Error comprando acciones. Intenta de nuevo.', 'error');
+            } finally {
+                isLoading = false;
+                // Re-enable button
+                buyButton.disabled = false;
+                buyButton.textContent = originalText;
             }
         }
 
@@ -200,12 +226,19 @@
             document.getElementById('searchStock').value = '';
             document.getElementById('quantity').value = '1';
             document.getElementById('searchResults').style.display = 'none';
+            document.getElementById('totalCost').innerHTML = '';
         }
 
         function showMessage(text, type) {
             const messageDiv = document.getElementById('message');
             messageDiv.innerHTML = `<div class="message ${type}">${text}</div>`;
-            setTimeout(() => messageDiv.innerHTML = '', 5000);
+            
+            // Auto-hide message after 8 seconds
+            setTimeout(() => {
+                if (messageDiv.innerHTML.includes(text)) {
+                    messageDiv.innerHTML = '';
+                }
+            }, 8000);
         }
 
         // Update total cost when quantity changes
@@ -223,3 +256,4 @@
     </script>
 </body>
 </html>
+``` 
