@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        .news-container{
+            display:grid;
+            grid-template-columns:repeat(auto-fill,minmax(300px,1fr));
+            gap:16px;
+        }
+        .news-card{
+            background:white;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 12px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+        .news-card:hover{
+            transform: scale(1.02);
+        }
+        .news-card img{
+            width: 100%;
+            border-radius: 6px;
+        }
+        .news-card h3{
+            margin: 10px 0;
+            font-size: 1.1rem;
+        }
+        .news-card p{
+            font-size: 0.9rem;
+            color: #333;
+        }
+        .news-card a{
+            display: inline-block;
+            margin-top: 8px;
+            color: #005281;
+        }
+        .news-card a:hover{
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    este es el welcon estranyer
+    <div class="news-container"id="news"></div>
+    <script>
+        async function cargarNoticias(){
+            try{
+                const res= await fetch("/API/news");
+                const data = await res.json();
+                const contenedor = document.getElementById("news");
+                contenedor.innerHTML="";
+                data.slice(0,10).forEach(noticia => {
+                    const card = document.createElement("div");
+                    card.className="news-card";
+                    card.innerHTML=`
+                    ${noticia.image?`<img src="${noticia.image}" alt="Noticia">`:""}
+                    <h3>${noticia.headline}</h3>
+                    <p>${noticia.summary||"sin descripcion."}</p>
+                    <a href="${noticia.url}" target="_blank">Leer más</a>
+                    `;
+                    contenedor.appendChild(card);
+                });
+            }catch(err){
+                console.log(err);
+            }
+        }
+        window.onload=cargarNoticias;
+    </script>
+</body>
+</html>
