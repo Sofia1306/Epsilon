@@ -17,17 +17,33 @@ const getAllInvestments = async (req, res) => {
             investments.map(async (investment) => {
                 try {
                     const stockData = await financeAPI.getStockPrice(investment.symbol);
-                    investment.currentPrice = stockData.price;
-                    await investment.save();
+                    
+                    // Update current price in database
+                    await investment.update({ currentPrice: stockData.price });
+                    
+                    const currentValue = stockData.price * investment.quantity;
+                    const gainLoss = currentValue - parseFloat(investment.totalInvested);
+                    const gainLossPercent = ((stockData.price - parseFloat(investment.purchasePrice)) / parseFloat(investment.purchasePrice)) * 100;
                     
                     return {
                         ...investment.toJSON(),
-                        currentValue: (stockData.price * investment.quantity).toFixed(2),
-                        gainLoss: ((stockData.price * investment.quantity) - investment.totalInvested).toFixed(2),
-                        gainLossPercent: (((stockData.price - investment.purchasePrice) / investment.purchasePrice) * 100).toFixed(2)
+                        currentPrice: stockData.price,
+                        currentValue: currentValue.toFixed(2),
+                        gainLoss: gainLoss.toFixed(2),
+                        gainLossPercent: gainLossPercent.toFixed(2)
                     };
                 } catch (error) {
-                    return investment.toJSON();
+                    console.log(`Could not update price for ${investment.symbol}`);
+                    const currentValue = parseFloat(investment.currentPrice || investment.purchasePrice) * investment.quantity;
+                    const gainLoss = currentValue - parseFloat(investment.totalInvested);
+                    const gainLossPercent = ((parseFloat(investment.currentPrice || investment.purchasePrice) - parseFloat(investment.purchasePrice)) / parseFloat(investment.purchasePrice)) * 100;
+                    
+                    return {
+                        ...investment.toJSON(),
+                        currentValue: currentValue.toFixed(2),
+                        gainLoss: gainLoss.toFixed(2),
+                        gainLossPercent: gainLossPercent.toFixed(2)
+                    };
                 }
             })
         );
@@ -104,20 +120,25 @@ const createInvestment = async (req, res) => {
         const stockData = await financeAPI.getStockPrice(symbol.toUpperCase());
         const totalCost = (stockData.price * quantity);
 
-        // Get user's cash balance
-        const user = await User.findByPk(userId);
-        if (user.cashBalance < totalCost) {
+        // Get user's cash balance with lock to prevent race conditions
+        const user = await User.findByPk(userId, { 
+            transaction,
+            lock: transaction.LOCK.UPDATE 
+        });
+        
+        if (parseFloat(user.cashBalance) < totalCost) {
             await transaction.rollback();
             return res.status(400).json({
                 success: false,
-                message: `Insufficient funds. You have $${user.cashBalance.toFixed(2)} but need $${totalCost.toFixed(2)}`
+                message: `Insufficient funds. You have $${parseFloat(user.cashBalance).toFixed(2)} but need $${totalCost.toFixed(2)}`
             });
         }
 
         // Check if user already has this stock
         const existingInvestment = await Investment.findOne({
             where: { userId, symbol: symbol.toUpperCase() },
-            transaction
+            transaction,
+            lock: transaction.LOCK.UPDATE
         });
 
         if (existingInvestment) {
@@ -146,8 +167,9 @@ const createInvestment = async (req, res) => {
         }
 
         // Deduct cash from user's balance
+        const newCashBalance = parseFloat(user.cashBalance) - totalCost;
         await user.update({
-            cashBalance: (parseFloat(user.cashBalance) - totalCost).toFixed(2)
+            cashBalance: newCashBalance.toFixed(2)
         }, { transaction });
 
         // Record transaction
@@ -166,7 +188,7 @@ const createInvestment = async (req, res) => {
             success: true,
             message: `Successfully bought ${quantity} shares of ${symbol.toUpperCase()} for $${totalCost.toFixed(2)}`,
             data: {
-                remainingCash: (parseFloat(user.cashBalance) - totalCost).toFixed(2)
+                remainingCash: newCashBalance.toFixed(2)
             }
         });
     } catch (error) {
@@ -188,9 +210,19 @@ const sellInvestment = async (req, res) => {
         const userId = req.user.id;
         const { quantity } = req.body;
 
+        if (!quantity || quantity <= 0) {
+            await transaction.rollback();
+            return res.status(400).json({
+                success: false,
+                message: 'Valid quantity is required'
+            });
+        }
+
+        // Find investment with lock to prevent race conditions
         const investment = await Investment.findOne({
             where: { id, userId },
-            transaction
+            transaction,
+            lock: transaction.LOCK.UPDATE
         });
 
         if (!investment) {
@@ -205,7 +237,7 @@ const sellInvestment = async (req, res) => {
             await transaction.rollback();
             return res.status(400).json({
                 success: false,
-                message: 'Cannot sell more shares than you own'
+                message: `Cannot sell ${quantity} shares. You only have ${investment.quantity} shares.`
             });
         }
 
@@ -213,8 +245,16 @@ const sellInvestment = async (req, res) => {
         const stockData = await financeAPI.getStockPrice(investment.symbol);
         const saleAmount = stockData.price * quantity;
         
-        // Get user to update cash balance
-        const user = await User.findByPk(userId, { transaction });
+        // Get user to update cash balance with lock
+        const user = await User.findByPk(userId, { 
+            transaction,
+            lock: transaction.LOCK.UPDATE 
+        });
+
+        // Calculate profit/loss before modifying the investment
+        const avgPurchasePrice = parseFloat(investment.totalInvested) / investment.quantity;
+        const profitLoss = (stockData.price - avgPurchasePrice) * quantity;
+        const profitLossPercent = ((stockData.price - avgPurchasePrice) / avgPurchasePrice) * 100;
 
         if (quantity === investment.quantity) {
             // Sell all shares - delete investment
@@ -223,19 +263,19 @@ const sellInvestment = async (req, res) => {
             // Partial sell - update investment
             const sellRatio = quantity / investment.quantity;
             const newQuantity = investment.quantity - quantity;
-            const newTotalInvested = (investment.totalInvested * (1 - sellRatio)).toFixed(2);
+            const newTotalInvested = parseFloat(investment.totalInvested) * (1 - sellRatio);
             
             await investment.update({
                 quantity: newQuantity,
-                totalInvested: newTotalInvested,
+                totalInvested: newTotalInvested.toFixed(2),
                 currentPrice: stockData.price
             }, { transaction });
         }
 
         // Add cash to user's balance
-        const newCashBalance = (parseFloat(user.cashBalance) + saleAmount).toFixed(2);
+        const newCashBalance = parseFloat(user.cashBalance) + saleAmount;
         await user.update({
-            cashBalance: newCashBalance
+            cashBalance: newCashBalance.toFixed(2)
         }, { transaction });
 
         // Record transaction
@@ -250,11 +290,6 @@ const sellInvestment = async (req, res) => {
 
         await transaction.commit();
 
-        // Calculate profit/loss
-        const avgPurchasePrice = investment.totalInvested / investment.quantity;
-        const profitLoss = (stockData.price - avgPurchasePrice) * quantity;
-        const profitLossPercent = ((stockData.price - avgPurchasePrice) / avgPurchasePrice) * 100;
-
         res.json({
             success: true,
             message: `Successfully sold ${quantity} shares of ${investment.symbol} for $${saleAmount.toFixed(2)}`,
@@ -262,7 +297,7 @@ const sellInvestment = async (req, res) => {
                 saleAmount: saleAmount.toFixed(2),
                 profitLoss: profitLoss.toFixed(2),
                 profitLossPercent: profitLossPercent.toFixed(2),
-                newCashBalance: newCashBalance
+                newCashBalance: newCashBalance.toFixed(2)
             }
         });
     } catch (error) {
@@ -270,7 +305,7 @@ const sellInvestment = async (req, res) => {
         console.error('Error selling investment:', error);
         res.status(500).json({
             success: false,
-            message: 'Error selling investment'
+            message: 'Error selling investment: ' + error.message
         });
     }
 };
@@ -339,32 +374,42 @@ const getCashBalance = async (req, res) => {
 
 // Add cash to user's account (simulate deposit)
 const addCash = async (req, res) => {
+    const transaction = await sequelize.transaction();
+    
     try {
         const userId = req.user.id;
         const { amount } = req.body;
         
         if (!amount || amount <= 0) {
+            await transaction.rollback();
             return res.status(400).json({
                 success: false,
                 message: 'Valid amount is required'
             });
         }
         
-        const user = await User.findByPk(userId);
-        const newBalance = (parseFloat(user.cashBalance) + parseFloat(amount)).toFixed(2);
+        const user = await User.findByPk(userId, { 
+            transaction,
+            lock: transaction.LOCK.UPDATE 
+        });
+        
+        const newBalance = parseFloat(user.cashBalance) + parseFloat(amount);
         
         await user.update({
-            cashBalance: newBalance
-        });
+            cashBalance: newBalance.toFixed(2)
+        }, { transaction });
+        
+        await transaction.commit();
         
         res.json({
             success: true,
             message: `Successfully added $${parseFloat(amount).toFixed(2)} to your account`,
             data: {
-                newBalance: newBalance
+                newBalance: newBalance.toFixed(2)
             }
         });
     } catch (error) {
+        await transaction.rollback();
         console.error('Error adding cash:', error);
         res.status(500).json({
             success: false,
@@ -401,7 +446,7 @@ module.exports = {
     getAllInvestments,
     getInvestmentById,
     createInvestment,
-    updateInvestment: sellInvestment, // Rename to better reflect selling
+    updateInvestment: sellInvestment,
     deleteInvestment,
     sellInvestment,
     getCashBalance,

@@ -81,12 +81,16 @@
 
     <script>
         const userId = localStorage.getItem('userId');
+        let isLoading = false;
 
         if (!userId) {
             window.location.href = 'login.html';
         }
 
         async function loadInvestments() {
+            if (isLoading) return;
+            isLoading = true;
+            
             try {
                 const [investmentsResponse, cashResponse] = await Promise.all([
                     fetch('/api/investments/', {
@@ -120,6 +124,8 @@
             } catch (error) {
                 console.error('Error loading investments:', error);
                 showMessage('Error cargando inversiones', 'error');
+            } finally {
+                isLoading = false;
             }
         }
 
@@ -207,6 +213,11 @@
                 return;
             }
             
+            const sellButton = event.target;
+            const originalText = sellButton.textContent;
+            sellButton.disabled = true;
+            sellButton.textContent = 'Vendiendo...';
+            
             try {
                 const response = await fetch(`/api/investments/${investmentId}/sell`, {
                     method: 'POST',
@@ -220,9 +231,6 @@
                 const result = await response.json();
                 
                 if (result.success) {
-                    showMessage(result.message, 'success');
-                    
-                    // Show profit/loss information
                     const profitLoss = parseFloat(result.data.profitLoss);
                     const profitLossPercent = parseFloat(result.data.profitLossPercent);
                     const profitLossClass = profitLoss >= 0 ? 'success' : 'error';
@@ -230,28 +238,24 @@
                     
                     showMessage(`
                         ${result.message}<br>
-                        ${profitLossText}: ${profitLoss >= 0 ? '+' : ''}$${profitLoss} (${profitLossPercent >= 0 ? '+' : ''}${profitLossPercent}%)<br>
+                        ${profitLossText}: ${profitLoss >= 0 ? '+' : ''}$${Math.abs(profitLoss).toFixed(2)} (${profitLossPercent >= 0 ? '+' : ''}${profitLossPercent.toFixed(2)}%)<br>
                         Nuevo balance: $${parseFloat(result.data.newCashBalance).toLocaleString()}
                     `, profitLossClass);
                     
-                    // Reload investments and cash balance
-                    loadInvestments();
+                    setTimeout(() => {
+                        loadInvestments();
+                    }, 1000);
                 } else {
                     showMessage(result.message, 'error');
+                    sellButton.disabled = false;
+                    sellButton.textContent = originalText;
                 }
             } catch (error) {
                 console.error('Error selling stock:', error);
                 showMessage('Error vendiendo acciones', 'error');
+                sellButton.disabled = false;
+                sellButton.textContent = originalText;
             }
-        }
-
-        function showAddCashModal() {
-            document.getElementById('addCashModal').style.display = 'block';
-        }
-
-        function closeAddCashModal() {
-            document.getElementById('addCashModal').style.display = 'none';
-            document.getElementById('cashAmount').value = '';
         }
 
         async function addCash() {
@@ -278,6 +282,10 @@
                     showMessage(result.message, 'success');
                     document.getElementById('cashBalance').textContent = `$${parseFloat(result.data.newBalance).toLocaleString()}`;
                     closeAddCashModal();
+                    
+                    setTimeout(() => {
+                        loadInvestments();
+                    }, 500);
                 } else {
                     showMessage(result.message, 'error');
                 }
@@ -287,13 +295,26 @@
             }
         }
 
+        function showAddCashModal() {
+            document.getElementById('addCashModal').style.display = 'block';
+        }
+
+        function closeAddCashModal() {
+            document.getElementById('addCashModal').style.display = 'none';
+            document.getElementById('cashAmount').value = '';
+        }
+
         function showMessage(text, type) {
             const messageDiv = document.getElementById('message');
             messageDiv.innerHTML = `<div class="message ${type}">${text}</div>`;
-            setTimeout(() => messageDiv.innerHTML = '', 8000);
+            
+            setTimeout(() => {
+                if (messageDiv.innerHTML.includes(text)) {
+                    messageDiv.innerHTML = '';
+                }
+            }, 10000);
         }
 
-        // Load initial data
         loadInvestments();
     </script>
 </body>

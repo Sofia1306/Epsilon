@@ -123,8 +123,11 @@
                 const messageDiv = document.getElementById('message');
                 
                 if (result.success) {
+                    // Store JWT token and user data
+                    localStorage.setItem('authToken', result.data.token);
                     localStorage.setItem('userId', result.data.user.id);
                     localStorage.setItem('user', JSON.stringify(result.data.user));
+                    
                     messageDiv.innerHTML = '<div class="message success">¡Login exitoso! Redirigiendo...</div>';
                     setTimeout(() => {
                         window.location.href = 'dashboard.html';

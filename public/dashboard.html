@@ -763,6 +763,104 @@
             updateChart();
         }
         
+        function generateTimeSeriesData(investment, period, dateFrom, dateTo, chartType) {
+            const currentPrice = parseFloat(investment.currentPrice || investment.purchasePrice);
+            const purchasePrice = parseFloat(investment.purchasePrice);
+            const quantity = investment.quantity;
+            
+            // Calculate total price change percentage
+            const totalPriceChange = ((currentPrice - purchasePrice) / purchasePrice);
+            
+            // Generate points based on period
+            const points = [];
+            const startDate = dateFrom ? new Date(dateFrom) : getStartDate(period);
+            const endDate = dateTo ? new Date(dateTo) : new Date();
+            
+            // Ensure we have valid dates
+            if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+                return [];
+            }
+            
+            const daysDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+            const pointsCount = Math.min(Math.max(daysDiff, 10), 100); // Between 10 and 100 points
+            
+            // Create a more realistic price path
+            let accumulatedReturn = 0;
+            const volatility = getVolatilityForPeriod(period);
+            const drift = totalPriceChange / pointsCount; // Average daily drift to reach final price
+            
+            for (let i = 0; i <= pointsCount; i++) {
+                const date = new Date(startDate.getTime() + (i / pointsCount) * (endDate - startDate));
+                
+                // Generate more realistic price movement
+                let priceVariation;
+                
+                if (i === 0) {
+                    // Start at purchase price
+                    priceVariation = purchasePrice;
+                    accumulatedReturn = 0;
+                } else if (i === pointsCount) {
+                    // End at current price
+                    priceVariation = currentPrice;
+                } else {
+                    // Random walk with drift
+                    const randomShock = (Math.random() - 0.5) * volatility;
+                    accumulatedReturn += drift + randomShock;
+                    
+                    // Add some mean reversion and trending
+                    const progress = i / pointsCount;
+                    const targetReturn = totalPriceChange * progress;
+                    const meanReversionForce = (targetReturn - accumulatedReturn) * 0.1;
+                    
+                    accumulatedReturn += meanReversionForce;
+                    priceVariation = purchasePrice * (1 + accumulatedReturn);
+                    
+                    // Ensure price doesn't go below $1
+                    priceVariation = Math.max(1, priceVariation);
+                }
+                
+                let value;
+                switch (chartType) {
+                    case 'value':
+                        value = priceVariation * quantity;
+                        break;
+                    case 'percentage':
+                        value = ((priceVariation - purchasePrice) / purchasePrice) * 100;
+                        break;
+                    case 'volume':
+                        // Generate realistic volume with some correlation to price movement
+                        const baseVolume = 500000 + Math.random() * 1000000;
+                        const priceChangeToday = i > 0 ? Math.abs((priceVariation - points[i-1]?.y) / purchasePrice) : 0;
+                        const volumeMultiplier = 1 + priceChangeToday * 10; // Higher volume on big price moves
+                        value = Math.floor(baseVolume * volumeMultiplier);
+                        break;
+                    default:
+                        value = priceVariation * quantity;
+                }
+                
+                points.push({
+                    x: date.getTime(),
+                    y: Math.max(chartType === 'volume' ? 0 : (chartType === 'value' ? quantity : -100), value)
+                });
+            }
+            
+            return points;
+        }
+        
+        function getVolatilityForPeriod(period) {
+            // Return appropriate daily volatility based on time period
+            switch (period) {
+                case '1d': return 0.02; // 2% intraday volatility
+                case '1w': return 0.015; // 1.5% daily volatility
+                case '1m': return 0.02; // 2% daily volatility
+                case '3m': return 0.025; // 2.5% daily volatility
+                case '6m': return 0.02; // 2% daily volatility
+                case '1y': return 0.025; // 2.5% daily volatility
+                default: return 0.02;
+            }
+        }
+        
+        // Enhanced chart update function with better styling
         async function updateChart() {
             const timePeriod = document.getElementById('timePeriod').value;
             const dateFrom = document.getElementById('dateFrom').value;
@@ -777,23 +875,44 @@
                 investmentCharts.timeSeries.destroy();
             }
             
-            // Generate time series data (simulated for demo)
+            // Generate time series data
             const datasets = Array.from(selectedInvestments).map(symbol => {
                 const investment = investmentData.find(inv => inv.symbol === symbol);
                 if (!investment) return null;
                 
                 const data = generateTimeSeriesData(investment, timePeriod, dateFrom, dateTo, chartType);
+                const color = generateColor(symbol);
                 
                 return {
                     label: `${symbol} - ${investment.companyName || 'N/A'}`,
                     data: data,
-                    borderColor: generateColor(symbol),
-                    backgroundColor: generateColor(symbol) + '20',
-                    borderWidth: 2,
+                    borderColor: color,
+                    backgroundColor: color + '10',
+                    borderWidth: 3,
                     fill: false,
-                    tension: 0.1
+                    tension: 0.2,
+                    pointRadius: 2,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: color,
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2
                 };
             }).filter(Boolean);
+            
+            // Calculate Y-axis range for better visibility
+            let yMin = Infinity;
+            let yMax = -Infinity;
+            datasets.forEach(dataset => {
+                dataset.data.forEach(point => {
+                    yMin = Math.min(yMin, point.y);
+                    yMax = Math.max(yMax, point.y);
+                });
+            });
+            
+            // Add padding to Y-axis
+            const padding = (yMax - yMin) * 0.1;
+            yMin = Math.max(0, yMin - padding);
+            yMax = yMax + padding;
             
             investmentCharts.timeSeries = new Chart(ctx, {
                 type: 'line',
@@ -821,93 +940,91 @@
                             },
                             title: {
                                 display: true,
-                                text: 'Fecha'
+                                text: 'Fecha',
+                                font: {
+                                    weight: 'bold'
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(0,0,0,0.1)'
                             }
                         },
                         y: {
                             title: {
                                 display: true,
                                 text: chartType === 'value' ? 'Valor ($)' : 
-                                      chartType === 'percentage' ? 'Cambio (%)' : 'Volumen'
+                                      chartType === 'percentage' ? 'Cambio (%)' : 'Volumen',
+                                font: {
+                                    weight: 'bold'
+                                }
                             },
-                            beginAtZero: chartType === 'volume'
+                            min: chartType === 'percentage' ? undefined : yMin,
+                            max: yMax,
+                            grid: {
+                                color: 'rgba(0,0,0,0.1)'
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    if (chartType === 'value') {
+                                        return '$' + value.toLocaleString();
+                                    } else if (chartType === 'percentage') {
+                                        return value.toFixed(1) + '%';
+                                    } else {
+                                        return value.toLocaleString();
+                                    }
+                                }
+                            }
                         }
                     },
                     plugins: {
                         title: {
                             display: true,
                             text: `Evolución de Inversiones - ${chartType === 'value' ? 'Valor' : 
-                                                                chartType === 'percentage' ? 'Porcentaje' : 'Volumen'}`
+                                                                chartType === 'percentage' ? 'Porcentaje' : 'Volumen'}`,
+                            font: {
+                                size: 16,
+                                weight: 'bold'
+                            }
                         },
                         legend: {
                             position: 'top',
+                            labels: {
+                                usePointStyle: true,
+                                padding: 20
+                            }
                         },
                         tooltip: {
+                            backgroundColor: 'rgba(0,0,0,0.8)',
+                            titleColor: 'white',
+                            bodyColor: 'white',
+                            borderColor: 'rgba(255,255,255,0.2)',
+                            borderWidth: 1,
                             callbacks: {
                                 label: function(context) {
                                     const value = context.parsed.y;
-                                    const prefix = chartType === 'value' ? '$' : 
-                                                 chartType === 'percentage' ? '' : '';
-                                    const suffix = chartType === 'percentage' ? '%' : '';
-                                    return `${context.dataset.label}: ${prefix}${value.toFixed(2)}${suffix}`;
+                                    const symbol = context.dataset.label.split(' - ')[0];
+                                    
+                                    if (chartType === 'value') {
+                                        return `${symbol}: $${value.toLocaleString()}`;
+                                    } else if (chartType === 'percentage') {
+                                        return `${symbol}: ${value.toFixed(2)}%`;
+                                    } else {
+                                        return `${symbol}: ${value.toLocaleString()} volumen`;
+                                    }
+                                },
+                                title: function(context) {
+                                    const date = new Date(context[0].parsed.x);
+                                    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
                                 }
                             }
                         }
+                    },
+                    animation: {
+                        duration: 1000,
+                        easing: 'easeInOutQuart'
                     }
                 }
             });
-        }
-        
-        function generateTimeSeriesData(investment, period, dateFrom, dateTo, chartType) {
-            const currentPrice = parseFloat(investment.currentPrice || investment.purchasePrice);
-            const purchasePrice = parseFloat(investment.purchasePrice);
-            const quantity = investment.quantity;
-            
-            // Generate points based on period
-            const points = [];
-            const startDate = dateFrom ? new Date(dateFrom) : getStartDate(period);
-            const endDate = dateTo ? new Date(dateTo) : new Date();
-            
-            // Ensure we have valid dates
-            if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-                return [];
-            }
-            
-            const daysDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
-            const pointsCount = Math.min(Math.max(daysDiff, 5), 50); // Between 5 and 50 points
-            
-            for (let i = 0; i <= pointsCount; i++) {
-                const date = new Date(startDate.getTime() + (i / pointsCount) * (endDate - startDate));
-                
-                // Simulate price movement (in real app, this would come from historical data API)
-                const progress = i / pointsCount;
-                const volatility = 0.02; // 2% daily volatility
-                const trend = (currentPrice - purchasePrice) * progress;
-                const randomWalk = (Math.random() - 0.5) * purchasePrice * volatility;
-                const priceVariation = Math.max(0.01, purchasePrice + trend + randomWalk);
-                
-                let value;
-                switch (chartType) {
-                    case 'value':
-                        value = priceVariation * quantity;
-                        break;
-                    case 'percentage':
-                        value = ((priceVariation - purchasePrice) / purchasePrice) * 100;
-                        break;
-                    case 'volume':
-                        value = Math.floor(Math.random() * 1000000) + 100000; // Simulated volume
-                        break;
-                    default:
-                        value = priceVariation * quantity;
-                }
-                
-                points.push({
-                    x: date.getTime(), // Use timestamp instead of Date object
-                    y: Math.max(0, value)
-                });
-            }
-            
-            return points;
         }
         
         function getStartDate(period) {
