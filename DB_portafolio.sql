@@ -26,5 +26,12 @@ CREATE TABLE investments (
     FOREIGN KEY (id_user) REFERENCES users(id_user)
 );
 
+CREATE TABLE currency_values (
+    id_value INT AUTO_INCREMENT PRIMARY KEY,
+    id_user INT NOT NULL,
+    simbol VARCHAR(10) NOT NULL,
+    value DECIMAL(15,4) NOT NULL,
+    FOREIGN KEY (id_user) REFERENCES users(id_user)
+);
 
 
