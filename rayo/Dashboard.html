@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        .news-container{
+            display:grid;
+            grid-template-columns:repeat(auto-fill,minmax(300px,1fr));
+            gap:16px;
+        }
+        .news-card{
+            background:white;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 12px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+        .news-card:hover{
+            transform: scale(1.02);
+        }
+        .news-card img{
+            width: 100%;
+            border-radius: 6px;
+        }
+        .news-card h3{
+            margin: 10px 0;
+            font-size: 1.1rem;
+        }
+        .news-card p{
+            font-size: 0.9rem;
+            color: #333;
+        }
+        .news-card a{
+            display: inline-block;
+            margin-top: 8px;
+            color: #005281;
+        }
+        .news-card a:hover{
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    este es el welcon estranyer: 
+    <p id="userName"></p>
+    <button id="logout" onclick="logout()">logout</button>
+    <button id ="stock" onclick="window.location.href='stocks.html'">stock</button>
+    <div class="news-container"id="news"></div>
+    <script src="./js/dashboard.js"></script>
+</body>
+</html>
