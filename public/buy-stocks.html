@@ -4,80 +4,728 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Comprar Acciones - Portfolio Management</title>
+    <script src="./js/header-loader.js"></script>
+    <link rel="stylesheet" href="./css/global.css">
     <style>
-        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5; }
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 0; 
+            padding: 0; 
+            background-color: #f5f5f5; 
+            color: #293b36;
+        }
+        
+        .main-content {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 0 20px;
+        }
+        
+        .page-header {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border-left: 5px solid #28a745;
+        }
+        
+        .page-title {
+            margin: 0 0 10px 0;
+            font-size: 28px;
+            font-weight: 700;
+            color: #293b36;
+        }
+        
+        .page-subtitle {
+            margin: 0;
+            color: #666;
+            font-size: 16px;
+        }
+        
         .container { max-width: 800px; margin: 0 auto; }
         .header { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
         .card { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
         .form-group { margin-bottom: 15px; }
         label { display: block; margin-bottom: 5px; color: #555; font-weight: bold; }
         input, select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
-        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-right: 10px; }
-        button:hover { background: #0056b3; }
+        button { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            color: white; 
+            border: none; 
+            padding: 10px 20px; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            margin-right: 10px; 
+            font-weight: 700;
+        }
+        button:hover { 
+            transform: translateY(-2px); 
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15); 
+        }
         .stock-info { background: #f8f9fa; padding: 15px; border-radius: 4px; margin: 15px 0; }
         .price { font-size: 24px; font-weight: bold; color: #28a745; }
         .change-positive { color: #28a745; }
         .change-negative { color: #dc3545; }
-        .search-results { max-height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; }
-        .search-item { padding: 10px; cursor: pointer; border-bottom: 1px solid #eee; }
-        .search-item:hover { background: #f8f9fa; }
         .back-btn { background: #6c757d; }
         .message { padding: 10px; border-radius: 4px; margin: 10px 0; }
         .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
         .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        
+        /* Nuevo estilo para la búsqueda inspirado en stocks.html */
+        .search-box {
+            position: relative;
+            width: 100%;
+            margin-bottom: 15px;
+        }
+        .search-box input {
+            padding: 12px 50px 12px 15px;
+            width: 100%;
+            box-sizing: border-box;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            transition: border-color 0.3s;
+        }
+        .search-box input:focus {
+            border-color: #007bff;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+        }
+        .search-box button {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 20px;
+            color: #666;
+            padding: 5px;
+            border-radius: 50%;
+            transition: all 0.3s;
+        }
+        .search-box button:hover {
+            color: #007bff;
+            background: #f8f9fa;
+        }
+        .search-results {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: white;
+            display: none;
+        }
+        .search-results.default-view {
+            display: block;
+            border: 1px solid #e7f3ff;
+            background: #f8fafe;
+        }
+        .search-results.search-view {
+            display: block;
+            border: 1px solid #ddd;
+            background: white;
+        }
+        .stock-container {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+            transition: background-color 0.2s;
+            position: relative;
+        }
+        .stock-container:hover {
+            background-color: #f8f9fa;
+        }
+        .stock-container:last-child {
+            border-bottom: none;
+        }
+        .stock-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .stock-basic-info {
+            flex: 1;
+        }
+        .stock-actions {
+            display: flex;
+            gap: 8px;
+        }
+        .stock-action-btn {
+            padding: 4px 8px;
+            border: 1px solid #007bff;
+            background: white;
+            color: #007bff;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            transition: all 0.2s;
+            text-decoration: none;
+        }
+        .stock-action-btn:hover {
+            background: #007bff;
+            color: white;
+        }
+        .stock-action-btn.primary {
+            background: #007bff;
+            color: white;
+        }
+        .stock-action-btn.primary:hover {
+            background: #0056b3;
+        }
+        .stock-container h3 {
+            margin: 0 0 8px 0;
+            color: #333;
+            font-size: 16px;
+        }
+        .stock-container .stock-symbol {
+            font-weight: bold;
+            color: #007bff;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+        .stock-container .stock-price {
+            font-weight: bold;
+            font-size: 18px;
+            margin-bottom: 3px;
+        }
+        .stock-container .stock-change {
+            font-size: 14px;
+        }
+        .stock-container .loading-price {
+            color: #666;
+            font-style: italic;
+        }
+        .stock-container .error-price {
+            color: #dc3545;
+            font-size: 12px;
+        }
+        .search-status {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            font-style: italic;
+        }
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .top-stocks-header {
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-align: center;
+            font-weight: bold;
+            border-radius: 8px 8px 0 0;
+            margin: 0;
+        }
+        .popular-badge {
+            display: inline-block;
+            background: #28a745;
+            color: white;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            margin-left: 8px;
+        }
+        .market-leader {
+            background: linear-gradient(45deg, #ffd700, #ffed4e);
+            color: #333;
+        }
+        .top-gainer {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            color: white;
+        }
+        .high-volume {
+            background: linear-gradient(45deg, #007bff, #0056b3);
+            color: white;
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>Comprar Acciones</h1>
-            <div style="display: flex; gap: 15px; align-items: center;">
-                <div style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 10px 15px; border-radius: 8px; text-align: center;">
-                    <div style="font-size: 12px; opacity: 0.9;">Dinero Disponible</div>
-                    <div id="cashBalance" style="font-size: 18px; font-weight: bold;">$0.00</div>
+    <div class="main-content">
+        <div class="page-header">
+            <h1 class="page-title">💰 Comprar Acciones</h1>
+            <p class="page-subtitle">Busca y compra acciones para tu portafolio</p>
+        </div>
+
+        <div class="container">
+            <div class="header">
+                <h1>Comprar Acciones</h1>
+                <div style="display: flex; gap: 15px; align-items: center;">
+                    <div class="cash-info">
+                        <div style="font-size: 12px; opacity: 0.9;">Dinero Disponible</div>
+                        <div id="cashBalance" style="font-size: 18px; font-weight: bold;">$0.00</div>
+                    </div>
+                    <button class="back-btn" onclick="window.location.href='dashboard.html'">Volver al Dashboard</button>
                 </div>
-                <button class="back-btn" onclick="window.location.href='dashboard.html'">Volver al Dashboard</button>
             </div>
-        </div>
 
-        <div class="card">
-            <h3>Buscar Acción</h3>
-            <div class="form-group">
-                <label for="searchStock">Símbolo o Nombre de la Empresa:</label>
-                <input type="text" id="searchStock" placeholder="Ej: AAPL, Apple, GOOGL">
-                <button onclick="searchStocks()" style="margin-top: 10px;">Buscar</button>
+            <div class="card">
+                <h3>Buscar Acción</h3>
+                <div class="form-group">
+                    <label for="searchInput">Símbolo o Nombre de la Empresa:</label>
+                    <div class="search-box">
+                        <input type="text" id="searchInput" placeholder="Ej: AAPL, Apple, GOOGL, Microsoft...">
+                        <button id="searchBtn">🔍</button>
+                    </div>
+                </div>
+                <div id="searchResults" class="search-results"></div>
             </div>
-            <div id="searchResults" class="search-results" style="display: none;"></div>
-        </div>
 
-        <div class="card" id="stockCard" style="display: none;">
-            <h3>Información de la Acción</h3>
-            <div id="stockInfo" class="stock-info"></div>
-            
-            <div class="form-group">
-                <label for="quantity">Cantidad de Acciones:</label>
-                <input type="number" id="quantity" min="1" value="1">
+            <div class="card" id="stockCard" style="display: none;">
+                <h3>Información de la Acción</h3>
+                <div id="stockInfo" class="stock-info"></div>
+                
+                <div class="form-group">
+                    <label for="quantity">Cantidad de Acciones:</label>
+                    <input type="number" id="quantity" min="1" value="1">
+                </div>
+                
+                <div id="totalCost" style="font-size: 18px; font-weight: bold; margin: 15px 0;"></div>
+                
+                <button onclick="buyStock()">Comprar Acciones</button>
+                <button onclick="clearSelection()" style="background: #6c757d;">Limpiar</button>
             </div>
-            
-            <div id="totalCost" style="font-size: 18px; font-weight: bold; margin: 15px 0;"></div>
-            
-            <button onclick="buyStock()">Comprar Acciones</button>
-            <button onclick="clearSelection()" style="background: #6c757d;">Limpiar</button>
-        </div>
 
-        <div id="message"></div>
+            <div id="message"></div>
+        </div>
     </div>
 
     <script>
         let selectedStock = null;
         const userId = localStorage.getItem('userId');
         let isLoading = false;
+        let searchTimeout;
 
         if (!userId) {
             window.location.href = 'login.html';
         }
 
-        // Load cash balance on page load
+        // Referencias a elementos DOM
+        const searchInput = document.getElementById('searchInput');
+        const searchBtn = document.getElementById('searchBtn');
+        const searchResults = document.getElementById('searchResults');
+
+        // Top 10 acciones populares por defecto
+        const topStocks = [
+            { symbol: 'AAPL', category: 'market-leader', label: '👑 Líder' },
+            { symbol: 'GOOGL', category: 'high-volume', label: '📊 Alto Volumen' },
+            { symbol: 'MSFT', category: 'market-leader', label: '👑 Líder' },
+            { symbol: 'AMZN', category: 'high-volume', label: '📊 Alto Volumen' },
+            { symbol: 'TSLA', category: 'top-gainer', label: '🚀 Tendencia' },
+            { symbol: 'META', category: 'top-gainer', label: '🚀 Tendencia' },
+            { symbol: 'NVDA', category: 'top-gainer', label: '🚀 Tendencia' },
+            { symbol: 'JPM', category: 'market-leader', label: '🏦 Bancario' },
+            { symbol: 'V', category: 'market-leader', label: '💳 Fintech' },
+            { symbol: 'JNJ', category: 'market-leader', label: '🏥 Salud' }
+        ];
+
+        // Función para mostrar el top 10 por defecto
+        async function loadTopStocks() {
+            searchResults.style.display = 'block';
+            searchResults.className = 'search-results default-view';
+            
+            searchResults.innerHTML = `
+                <div class="top-stocks-header">
+                    📈 Top 10 Acciones Populares
+                </div>
+                <div class="search-status">
+                    <div class="loading-spinner"></div> Cargando acciones populares...
+                </div>
+            `;
+
+            try {
+                const stocksHTML = [];
+                
+                for (let i = 0; i < topStocks.length; i++) {
+                    const stock = topStocks[i];
+                    const container = document.createElement("div");
+                    container.className = "stock-container";
+                    container.setAttribute('data-symbol', stock.symbol);
+                    
+                    // Estructura inicial con ranking
+                    container.innerHTML = `
+                        <div class="stock-header">
+                            <div class="stock-basic-info">
+                                <div class="stock-symbol">
+                                    #${i + 1} ${stock.symbol}
+                                    <span class="popular-badge ${stock.category}">${stock.label}</span>
+                                </div>
+                                <h3>Cargando nombre...</h3>
+                            </div>
+                            <div class="stock-actions">
+                                <a href="stock-details.html?symbol=${stock.symbol}" class="stock-action-btn" target="_blank">
+                                    📊 Ver Detalles
+                                </a>
+                                <button class="stock-action-btn primary" onclick="selectStockFromSearch('${stock.symbol}')">
+                                    💰 Seleccionar
+                                </button>
+                            </div>
+                        </div>
+                        <div class="stock-price loading-price">Cargando precio...</div>
+                        <div class="stock-change"></div>
+                    `;
+                    
+                    stocksHTML.push(container.outerHTML);
+                    
+                    // Cargar precio de forma asíncrona
+                    setTimeout(() => {
+                        const actualContainer = searchResults.querySelector(`[data-symbol="${stock.symbol}"]`);
+                        if (actualContainer) {
+                            loadTopStockPrice(stock.symbol, actualContainer, i + 1, stock);
+                        }
+                    }, i * 200); // Stagger loading for better UX
+                }
+                
+                searchResults.innerHTML = `
+                    <div class="top-stocks-header">
+                        📈 Top 10 Acciones Populares
+                    </div>
+                    ${stocksHTML.join('')}
+                `;
+                
+            } catch (err) {
+                console.error('Error cargando top stocks:', err);
+                searchResults.innerHTML = `
+                    <div class="top-stocks-header">
+                        📈 Top 10 Acciones Populares
+                    </div>
+                    <div class="search-status" style="color: #dc3545;">
+                        Error cargando acciones populares
+                    </div>
+                `;
+            }
+        }
+
+        // Función específica para cargar precio de top stocks
+        async function loadTopStockPrice(symbol, container, rank, stockInfo) {
+            try {
+                const response = await fetch(`/api/market/stock-price/${symbol}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    const data = result.data;
+                    const changeClass = data.change >= 0 ? 'change-positive' : 'change-negative';
+                    const changeSign = data.change >= 0 ? '+' : '';
+                    
+                    // Update the container with enhanced layout including ranking
+                    container.innerHTML = `
+                        <div class="stock-header">
+                            <div class="stock-basic-info">
+                                <div class="stock-symbol">
+                                    #${rank} ${data.symbol}
+                                    <span class="popular-badge ${stockInfo.category}">${stockInfo.label}</span>
+                                </div>
+                                <h3>${data.shortName || `${symbol} Company`}</h3>
+                            </div>
+                            <div class="stock-actions">
+                                <a href="stock-details.html?symbol=${symbol}" class="stock-action-btn" target="_blank">
+                                    📊 Ver Detalles
+                                </a>
+                                <button class="stock-action-btn primary" onclick="selectStockFromSearch('${symbol}')">
+                                    💰 Seleccionar
+                                </button>
+                            </div>
+                        </div>
+                        <div class="stock-price">$${data.price.toFixed(2)}</div>
+                        <div class="stock-change ${changeClass}">
+                            ${changeSign}${data.change.toFixed(2)} (${changeSign}${data.changePercent.toFixed(2)}%)
+                        </div>
+                        ${data.volume ? `<div style="font-size: 12px; color: #666; margin-top: 5px;">Vol: ${data.volume.toLocaleString()}</div>` : ''}
+                        <div style="font-size: 11px; color: #999; margin-top: 3px;">
+                            Cap. Mercado: ${data.marketCap ? formatMarketCap(data.marketCap) : 'N/A'}
+                        </div>
+                    `;
+                } else {
+                    throw new Error('No se pudo obtener el precio');
+                }
+            } catch (err) {
+                console.error(`Error fetching price for ${symbol}:`, err);
+                container.innerHTML = `
+                    <div class="stock-header">
+                        <div class="stock-basic-info">
+                            <div class="stock-symbol">
+                                #${rank} ${symbol}
+                                <span class="popular-badge ${stockInfo.category}">${stockInfo.label}</span>
+                            </div>
+                            <h3>${symbol} Company</h3>
+                        </div>
+                        <div class="stock-actions">
+                            <a href="stock-details.html?symbol=${symbol}" class="stock-action-btn" target="_blank">
+                                📊 Ver Detalles
+                            </a>
+                            <button class="stock-action-btn primary" onclick="selectStockFromSearch('${symbol}')">
+                                💰 Seleccionar
+                            </button>
+                        </div>
+                    </div>
+                    <div class="error-price">Error obteniendo precio</div>
+                `;
+            }
+        }
+
+        // Función principal de búsqueda adaptada
+        async function cargarBusquedaStock(valor) {
+            console.log(`🔍 Frontend search called with: "${valor}"`);
+            
+            if (!valor || valor.trim().length < 1) {
+                // Si no hay búsqueda, mostrar top stocks
+                console.log('Empty search, loading top stocks');
+                loadTopStocks();
+                return;
+            }
+
+            try {
+                searchResults.style.display = 'block';
+                searchResults.className = 'search-results search-view';
+                searchResults.innerHTML = `
+                    <div class="search-status">
+                        <div class="loading-spinner"></div> Buscando "${valor}"...
+                    </div>
+                `;
+
+                console.log(`Making API call to: /api/market/search-stocks?query=${encodeURIComponent(valor)}`);
+                
+                // Usar la API existente de búsqueda
+                const response = await fetch(`/api/market/search-stocks?query=${encodeURIComponent(valor)}`);
+                const result = await response.json();
+
+                console.log('API Response:', result);
+
+                if (result.success && result.data.length > 0) {
+                    console.log(`Found ${result.data.length} results:`, result.data);
+                    searchResults.innerHTML = '';
+                    
+                    // Procesar solo los primeros 8 resultados para mejor rendimiento
+                    const stocks = result.data.slice(0, 8);
+                    
+                    for (const item of stocks) {
+                        const container = document.createElement("div");
+                        container.className = "stock-container";
+                        container.setAttribute('data-symbol', item.symbol);
+                        
+                        // Estructura inicial sin precio
+                        container.innerHTML = `
+                            <div class="stock-header">
+                                <div class="stock-basic-info">
+                                    <div class="stock-symbol">Symbol: ${item.symbol}</div>
+                                    <h3>${item.name}</h3>
+                                </div>
+                                <div class="stock-actions">
+                                    <a href="stock-details.html?symbol=${item.symbol}" class="stock-action-btn" target="_blank">
+                                        📊 Ver Detalles
+                                    </a>
+                                    <button class="stock-action-btn primary" onclick="selectStockFromSearch('${item.symbol}')">
+                                        💰 Seleccionar
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="stock-price loading-price">Cargando precio...</div>
+                            <div class="stock-change"></div>
+                        `;
+                        
+                        searchResults.appendChild(container);
+                        
+                        // Cargar precio de forma asíncrona
+                        loadStockPrice(item.symbol, container);
+                    }
+                } else {
+                    console.log('No results found or API error');
+                    searchResults.innerHTML = `
+                        <div class="search-status">
+                            No se encontraron resultados para "${valor}". 
+                            <button onclick="clearSearchAndShowTop()" style="color: #007bff; text-decoration: underline; background: none; border: none; cursor: pointer;">
+                                Ver acciones populares
+                            </button>
+                        </div>
+                    `;
+                }
+            } catch (err) {
+                console.error('Error en búsqueda:', err);
+                searchResults.innerHTML = `
+                    <div class="search-status" style="color: #dc3545;">
+                        Error al buscar. 
+                        <button onclick="clearSearchAndShowTop()" style="color: #007bff; text-decoration: underline; background: none; border: none; cursor: pointer;">
+                            Ver acciones populares
+                        </button>
+                    </div>
+                `;
+            }
+        }
+
+        // Función para limpiar búsqueda y mostrar top
+        function clearSearchAndShowTop() {
+            searchInput.value = '';
+            loadTopStocks();
+        }
+
+        // Función auxiliar para formatear market cap
+        function formatMarketCap(marketCap) {
+            if (marketCap >= 1e12) return '$' + (marketCap / 1e12).toFixed(1) + 'T';
+            if (marketCap >= 1e9) return '$' + (marketCap / 1e9).toFixed(1) + 'B';
+            if (marketCap >= 1e6) return '$' + (marketCap / 1e6).toFixed(1) + 'M';
+            return '$' + marketCap.toLocaleString();
+        }
+
+        // Función para cargar precio individual de cada acción
+        async function loadStockPrice(symbol, container) {
+            try {
+                const response = await fetch(`/api/market/stock-price/${symbol}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    const data = result.data;
+                    const changeClass = data.change >= 0 ? 'change-positive' : 'change-negative';
+                    const changeSign = data.change >= 0 ? '+' : '';
+                    
+                    // Update the container with enhanced layout
+                    container.innerHTML = `
+                        <div class="stock-header">
+                            <div class="stock-basic-info">
+                                <div class="stock-symbol">Symbol: ${data.symbol}</div>
+                                <h3>${data.shortName || `${symbol} Company`}</h3>
+                            </div>
+                            <div class="stock-actions">
+                                <a href="stock-details.html?symbol=${symbol}" class="stock-action-btn" target="_blank">
+                                    📊 Ver Detalles
+                                </a>
+                                <button class="stock-action-btn primary" onclick="selectStockFromSearch('${symbol}')">
+                                    💰 Seleccionar
+                                </button>
+                            </div>
+                        </div>
+                        <div class="stock-price">$${data.price.toFixed(2)}</div>
+                        <div class="stock-change ${changeClass}">
+                            ${changeSign}${data.change.toFixed(2)} (${changeSign}${data.changePercent.toFixed(2)}%)
+                        </div>
+                        ${data.volume ? `<div style="font-size: 12px; color: #666; margin-top: 5px;">Volumen: ${data.volume.toLocaleString()}</div>` : ''}
+                    `;
+                } else {
+                    throw new Error('No se pudo obtener el precio');
+                }
+            } catch (err) {
+                console.error(`Error fetching price for ${symbol}:`, err);
+                container.innerHTML = `
+                    <div class="stock-header">
+                        <div class="stock-basic-info">
+                            <div class="stock-symbol">Symbol: ${symbol}</div>
+                            <h3>${symbol} Company</h3>
+                        </div>
+                        <div class="stock-actions">
+                            <a href="stock-details.html?symbol=${symbol}" class="stock-action-btn" target="_blank">
+                                📊 Ver Detalles
+                            </a>
+                            <button class="stock-action-btn primary" onclick="selectStockFromSearch('${symbol}')">
+                                💰 Seleccionar
+                            </button>
+                        </div>
+                    </div>
+                    <div class="error-price">Error obteniendo precio</div>
+                `;
+            }
+        }
+
+        // Función para seleccionar una acción desde los resultados de búsqueda
+        async function selectStockFromSearch(symbol) {
+            try {
+                const response = await fetch(`/api/market/stock-price/${symbol}`);
+                const result = await response.json();
+
+                if (result.success) {
+                    selectedStock = result.data;
+                    displayStockInfo();
+                    searchResults.style.display = 'none';
+                    document.getElementById('stockCard').style.display = 'block';
+                    updateTotalCost();
+                    
+                    // Opcional: actualizar el input con el símbolo seleccionado
+                    searchInput.value = symbol;
+                } else {
+                    showMessage('Error obteniendo información de la acción', 'error');
+                }
+            } catch (error) {
+                showMessage('Error obteniendo información de la acción', 'error');
+            }
+        }
+
+        // Event listeners adaptados de stocks.js
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const value = searchInput.value.trim();
+                if (value) {
+                    cargarBusquedaStock(value);
+                }
+            }
+        });
+
+        // Búsqueda en tiempo real con debounce mejorada
+        searchInput.addEventListener('input', (e) => {
+            clearTimeout(searchTimeout);
+            const value = e.target.value.trim();
+            
+            if (value.length >= 2) {
+                searchTimeout = setTimeout(() => {
+                    cargarBusquedaStock(value);
+                }, 500); // Esperar 500ms después de que el usuario deje de escribir
+            } else if (value.length === 0) {
+                // Mostrar top stocks cuando se limpia la búsqueda
+                loadTopStocks();
+            }
+        });
+
+        searchBtn.addEventListener('click', () => {
+            const value = searchInput.value.trim();
+            if (value) {
+                cargarBusquedaStock(value);
+            }
+        });
+
+        // Función para detectar cuando el input pierde el foco
+        searchInput.addEventListener('blur', (e) => {
+            // Delay para permitir clics en los resultados
+            setTimeout(() => {
+                if (!searchInput.value.trim()) {
+                    // Solo ocultar si no hay búsqueda activa
+                    // loadTopStocks(); // Mantener visible para mejor UX
+                }
+            }, 200);
+        });
+
+        // Función para mostrar resultados cuando el input recibe foco
+        searchInput.addEventListener('focus', (e) => {
+            if (!searchInput.value.trim()) {
+                loadTopStocks();
+            } else {
+                searchResults.style.display = 'block';
+            }
+        });
+
+        // Cerrar resultados al hacer clic fuera (mejorado)
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.search-box') && 
+                !e.target.closest('.search-results') && 
+                !e.target.closest('.stock-action-btn')) {
+                
+                // Solo ocultar si hay búsqueda activa, mantener top stocks visible
+                if (searchInput.value.trim()) {
+                    searchResults.style.display = 'none';
+                }
+            }
+        });
+
+        // Funciones existentes adaptadas
         async function loadCashBalance() {
             try {
                 const response = await fetch('/api/investments/cash/balance', {
@@ -92,49 +740,6 @@
             }
         }
 
-        async function searchStocks() {
-            const query = document.getElementById('searchStock').value.trim();
-            if (!query) return;
-
-            try {
-                const response = await fetch(`/api/market/search-stocks?query=${encodeURIComponent(query)}`);
-                const result = await response.json();
-
-                const resultsDiv = document.getElementById('searchResults');
-                
-                if (result.success && result.data.length > 0) {
-                    resultsDiv.innerHTML = result.data.map(stock => 
-                        `<div class="search-item" onclick="selectStock('${stock.symbol}')">
-                            <strong>${stock.symbol}</strong> - ${stock.name}
-                        </div>`
-                    ).join('');
-                    resultsDiv.style.display = 'block';
-                } else {
-                    resultsDiv.innerHTML = '<div class="search-item">No se encontraron resultados</div>';
-                    resultsDiv.style.display = 'block';
-                }
-            } catch (error) {
-                showMessage('Error buscando acciones', 'error');
-            }
-        }
-
-        async function selectStock(symbol) {
-            try {
-                const response = await fetch(`/api/market/stock-price/${symbol}`);
-                const result = await response.json();
-
-                if (result.success) {
-                    selectedStock = result.data;
-                    displayStockInfo();
-                    document.getElementById('searchResults').style.display = 'none';
-                    document.getElementById('stockCard').style.display = 'block';
-                    updateTotalCost();
-                }
-            } catch (error) {
-                showMessage('Error obteniendo información de la acción', 'error');
-            }
-        }
-
         function displayStockInfo() {
             const stockInfo = document.getElementById('stockInfo');
             const changeClass = selectedStock.change >= 0 ? 'change-positive' : 'change-negative';
@@ -146,7 +751,8 @@
                 <div class="${changeClass}">
                     ${changeSign}${selectedStock.change.toFixed(2)} (${changeSign}${selectedStock.changePercent.toFixed(2)}%)
                 </div>
-                <div>Volumen: ${selectedStock.volume.toLocaleString()}</div>
+                <div>Volumen: ${selectedStock.volume ? selectedStock.volume.toLocaleString() : 'N/A'}</div>
+                ${selectedStock.dataSource ? `<div style="font-size: 12px; color: #666;">Fuente: ${selectedStock.dataSource}</div>` : ''}
             `;
         }
 
@@ -154,7 +760,9 @@
             const quantity = document.getElementById('quantity').value || 0;
             if (selectedStock && quantity > 0) {
                 const total = (selectedStock.price * quantity).toFixed(2);
-                document.getElementById('totalCost').innerHTML = `Total: $${total}`;
+                document.getElementById('totalCost').innerHTML = `Total: $${parseFloat(total).toLocaleString()}`;
+            } else {
+                document.getElementById('totalCost').innerHTML = '';
             }
         }
 
@@ -174,7 +782,6 @@
             isLoading = true;
             const totalCost = selectedStock.price * quantity;
             
-            // Disable buy button to prevent double submission
             const buyButton = event.target;
             const originalText = buyButton.textContent;
             buyButton.disabled = true;
@@ -198,13 +805,16 @@
                 if (result.success) {
                     showMessage(result.message, 'success');
                     
-                    // Update cash balance immediately
+                    // Update header balance
+                    if (window.headerLoader) {
+                        window.headerLoader.updateCashBalance(result.data.remainingCash);
+                    }
+                    
                     document.getElementById('cashBalance').textContent = `$${parseFloat(result.data.remainingCash).toLocaleString()}`;
                     
-                    // Clear selection after successful purchase
                     setTimeout(() => {
                         clearSelection();
-                        loadCashBalance(); // Refresh to ensure accuracy
+                        loadCashBalance();
                     }, 1000);
                 } else {
                     showMessage(result.message, 'error');
@@ -214,7 +824,6 @@
                 showMessage('Error comprando acciones. Intenta de nuevo.', 'error');
             } finally {
                 isLoading = false;
-                // Re-enable button
                 buyButton.disabled = false;
                 buyButton.textContent = originalText;
             }
@@ -223,7 +832,7 @@
         function clearSelection() {
             selectedStock = null;
             document.getElementById('stockCard').style.display = 'none';
-            document.getElementById('searchStock').value = '';
+            document.getElementById('searchInput').value = '';
             document.getElementById('quantity').value = '1';
             document.getElementById('searchResults').style.display = 'none';
             document.getElementById('totalCost').innerHTML = '';
@@ -233,7 +842,6 @@
             const messageDiv = document.getElementById('message');
             messageDiv.innerHTML = `<div class="message ${type}">${text}</div>`;
             
-            // Auto-hide message after 8 seconds
             setTimeout(() => {
                 if (messageDiv.innerHTML.includes(text)) {
                     messageDiv.innerHTML = '';
@@ -241,19 +849,30 @@
             }, 8000);
         }
 
-        // Update total cost when quantity changes
+        // Check for preselected stock from URL parameters
+        function checkPreselectedStock() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const preselectedSymbol = urlParams.get('symbol');
+            
+            if (preselectedSymbol) {
+                searchInput.value = preselectedSymbol;
+                selectStockFromSearch(preselectedSymbol);
+            }
+        }
+
+        // Event listeners
         document.getElementById('quantity').addEventListener('input', updateTotalCost);
 
-        // Search on Enter key
-        document.getElementById('searchStock').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                searchStocks();
-            }
-        });
-
-        // Load initial cash balance
+        // Load inicial mejorado
         loadCashBalance();
+        checkPreselectedStock();
+        
+        // Mostrar top stocks por defecto al cargar la página
+        setTimeout(() => {
+            if (!searchInput.value.trim()) {
+                loadTopStocks();
+            }
+        }, 1000);
     </script>
 </body>
 </html>
-``` 

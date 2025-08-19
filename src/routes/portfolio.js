@@ -3,13 +3,13 @@ const router = express.Router();
 const portfolioController = require('../controllers/portfolioController');
 const authMiddleware = require('../middleware/auth');
 
-// Route to get net investment
+// Get portfolio details
+router.get('/', authMiddleware.verifyToken, portfolioController.getPortfolioDetails);
+
+// Get net investment over time
 router.get('/net-investment', authMiddleware.verifyToken, portfolioController.getNetInvestment);
 
-// Route to get cash flow
+// Get cash flow analysis
 router.get('/cash-flow', authMiddleware.verifyToken, portfolioController.getCashFlow);
-
-// Route to get portfolio details
-router.get('/', authMiddleware.verifyToken, portfolioController.getPortfolioDetails);
 
 module.exports = router;
