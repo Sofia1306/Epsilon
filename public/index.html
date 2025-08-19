@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portfolio Management - Inicio</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 0; 
+            padding: 0; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #293b36;
+        }
+        .landing-container {
+            background: white;
+            padding: 50px;
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+            text-align: center;
+            max-width: 600px;
+            width: 90%;
+        }
+        .logo-section {
+            margin-bottom: 30px;
+        }
+        .logo-img {
+            width: 120px;
+            height: 90px;
+            margin-bottom: 20px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #293b36;
+            margin-bottom: 15px;
+            font-size: 36px;
+            font-weight: 700;
+        }
+        .tagline {
+            color: #667eea;
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 30px;
+            font-style: italic;
+        }
+        .subtitle {
+            color: #666;
+            font-size: 18px;
+            margin-bottom: 40px;
+            line-height: 1.6;
+        }
+        .auth-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 40px;
+        }
+        .btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.3s ease;
+            min-width: 150px;
+        }
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .btn-secondary {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+        }
+        .features {
+            margin-top: 40px;
+            text-align: left;
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 15px;
+        }
+        .features h3 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 25px;
+            font-size: 20px;
+        }
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+        .feature {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        .feature-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+        .feature-text {
+            color: #293b36;
+            font-weight: 500;
+        }
+        .demo-note {
+            background: linear-gradient(135deg, #ffeaa7 0%, #fab1a0 100%);
+            color: #333;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 30px;
+            text-align: center;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        @media (max-width: 768px) {
+            .landing-container {
+                padding: 30px 25px;
+            }
+            h1 {
+                font-size: 28px;
+            }
+            .auth-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="landing-container">
+        <div class="logo-section">
+            <img src="./media/logo2.png" alt="Portfolio Management Logo" class="logo-img">
+            <h1>Portfolio Management</h1>
+            <div class="tagline">Five minds, one winning portfolio.</div>
+        </div>
+        
+        <div class="subtitle">
+            Plataforma completa para gestionar tu portafolio de inversiones de manera inteligente. 
+            Compra, vende y analiza el rendimiento de tus acciones con herramientas profesionales.
+        </div>
+        
+        <div class="auth-buttons">
+            <a href="/register.html" class="btn btn-primary">🚀 Comenzar Ahora</a>
+            <a href="/login.html" class="btn btn-secondary">🔑 Iniciar Sesión</a>
+        </div>
+        
+        <div class="features">
+            <h3>✨ Características Principales</h3>
+            <div class="features-grid">
+                <div class="feature">
+                    <div class="feature-icon">💰</div>
+                    <div class="feature-text">Compra y venta de acciones simulada en tiempo real</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">📊</div>
+                    <div class="feature-text">Dashboard interactivo con gráficos avanzados</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">📈</div>
+                    <div class="feature-text">Análisis de rendimiento y ganancias/pérdidas</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🏪</div>
+                    <div class="feature-text">Datos de mercado financiero actualizados</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">💳</div>
+                    <div class="feature-text">Gestión de balance de efectivo</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🔒</div>
+                    <div class="feature-text">Sistema seguro con autenticación JWT</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="demo-note">
+            <strong>💡 Aplicación de Demostración</strong><br>
+            Esta es una simulación educativa. Los datos de mercado son una combinación de información real 
+            y datos simulados para fines de aprendizaje. No se realizan transacciones financieras reales.
+        </div>
+    </div>
+
+    <script>
+        // Redirigir si ya está logueado
+        const userId = localStorage.getItem('userId');
+        if (userId) {
+            // Verificar que el token sea válido antes de redirigir
+            const authToken = localStorage.getItem('authToken');
+            if (authToken) {
+                fetch('/api/auth/verify', {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'x-user-id': userId
+                    }
+                }).then(response => {
+                    if (response.ok) {
+                        window.location.href = '/dashboard.html';
+                    } else {
+                        // Token inválido, limpiar localStorage
+                        localStorage.removeItem('userId');
+                        localStorage.removeItem('user');
+                        localStorage.removeItem('authToken');
+                    }
+                }).catch(error => {
+                    console.error('Error verificando autenticación:', error);
+                });
+            }
+        }
+
+        // Animaciones suaves al cargar
+        document.addEventListener('DOMContentLoaded', function() {
+            const container = document.querySelector('.landing-container');
+            container.style.opacity = '0';
+            container.style.transform = 'translateY(30px)';
+            
+            setTimeout(() => {
+                container.style.transition = 'all 0.8s ease';
+                container.style.opacity = '1';
+                container.style.transform = 'translateY(0)';
+            }, 100);
+        });
+    </script>
+</body>
+</html>

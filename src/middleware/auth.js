@@ -1,168 +1,139 @@
 const jwt = require('jsonwebtoken');
 const { User } = require('../models');
 
-// Verify JWT token
 const verifyToken = async (req, res, next) => {
     try {
-        // Get token from header
-        const authHeader = req.header('Authorization');
-        const token = authHeader && authHeader.startsWith('Bearer ') 
-            ? authHeader.substring(7) 
-            : req.header('x-auth-token') || req.header('x-user-id'); // Fallback for existing implementation
-        
-        if (!token) {
+        let token = null;
+        let userId = null;
+
+        // Method 1: Check Authorization header (Bearer token)
+        const authHeader = req.headers.authorization;
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            token = authHeader.substring(7); // Remove 'Bearer ' prefix
+        }
+
+        // Method 2: Check x-user-id header (fallback for existing implementation)
+        if (!token && req.headers['x-user-id']) {
+            userId = req.headers['x-user-id'];
+        }
+
+        // If we have a JWT token, verify it
+        if (token) {
+            try {
+                const decoded = jwt.verify(token, process.env.JWT_SECRET);
+                userId = decoded.userId;
+                
+                // Add token info to request
+                req.tokenData = decoded;
+            } catch (jwtError) {
+                console.error('JWT verification failed:', jwtError.message);
+                return res.status(401).json({
+                    success: false,
+                    message: 'Token inválido o expirado'
+                });
+            }
+        }
+
+        // Verify user exists
+        if (!userId) {
             return res.status(401).json({
                 success: false,
-                message: 'No token provided, authorization denied'
+                message: 'Token de autenticación requerido'
             });
         }
 
-        try {
-            // Verify JWT token
-            const decoded = jwt.verify(token, process.env.JWT_SECRET);
-            
-            // Get user from database
-            const user = await User.findByPk(decoded.userId, {
-                attributes: { exclude: ['password'] }
-            });
-            
-            if (!user) {
-                return res.status(401).json({
-                    success: false,
-                    message: 'Token is valid but user not found'
-                });
-            }
-            
-            // Add user to request object
-            req.user = user;
-            next();
-            
-        } catch (jwtError) {
-            // If JWT fails, try the old simple auth as fallback
-            if (token && !isNaN(token)) {
-                const user = await User.findByPk(parseInt(token), {
-                    attributes: { exclude: ['password'] }
-                });
-                
-                if (user) {
-                    req.user = user;
-                    return next();
-                }
-            }
-            
+        // Find user in database
+        const user = await User.findByPk(userId);
+        if (!user) {
             return res.status(401).json({
                 success: false,
-                message: 'Token is invalid'
+                message: 'Usuario no encontrado'
             });
         }
+
+        // Add user to request object
+        req.user = user;
+        req.userId = user.id;
+
+        next();
     } catch (error) {
-        console.error('Auth verification error:', error);
+        console.error('Auth middleware error:', error);
         res.status(500).json({
             success: false,
-            message: 'Server error during authentication'
+            message: 'Error de autenticación'
         });
     }
 };
 
-// Optional authentication (for public routes with optional user data)
+// Optional auth middleware (doesn't require authentication)
 const optionalAuth = async (req, res, next) => {
     try {
-        const authHeader = req.header('Authorization');
-        const token = authHeader && authHeader.startsWith('Bearer ') 
-            ? authHeader.substring(7) 
-            : req.header('x-auth-token');
-        
-        if (token) {
+        const authHeader = req.headers.authorization;
+        const userId = req.headers['x-user-id'];
+
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            const token = authHeader.substring(7);
             try {
                 const decoded = jwt.verify(token, process.env.JWT_SECRET);
-                const user = await User.findByPk(decoded.userId, {
-                    attributes: { exclude: ['password'] }
-                });
-                
+                const user = await User.findByPk(decoded.userId);
                 if (user) {
                     req.user = user;
+                    req.userId = user.id;
+                }
+            } catch (jwtError) {
+                // Token invalid, but continue without auth
+                console.log('Optional auth: Invalid token, continuing without auth');
+            }
+        } else if (userId) {
+            try {
+                const user = await User.findByPk(userId);
+                if (user) {
+                    req.user = user;
+                    req.userId = user.id;
                 }
             } catch (error) {
-                // Token invalid, but continue without user
-                req.user = null;
+                // User not found, continue without auth
+                console.log('Optional auth: User not found, continuing without auth');
             }
         }
-        
+
         next();
     } catch (error) {
-        console.error('Optional auth error:', error);
-        req.user = null;
-        next();
+        console.error('Optional auth middleware error:', error);
+        next(); // Continue even if there's an error
     }
 };
 
-// Check if user is admin (for future admin routes)
+// Admin middleware (for admin-only routes)
 const requireAdmin = async (req, res, next) => {
     try {
         if (!req.user) {
             return res.status(401).json({
                 success: false,
-                message: 'Authentication required'
+                message: 'Autenticación requerida'
             });
         }
-        
-        // Add admin field to User model if needed
+
+        // Check if user is admin (you can add an isAdmin field to User model)
         if (!req.user.isAdmin) {
             return res.status(403).json({
                 success: false,
-                message: 'Admin access required'
+                message: 'Acceso de administrador requerido'
             });
         }
-        
+
         next();
     } catch (error) {
-        console.error('Admin check error:', error);
+        console.error('Admin middleware error:', error);
         res.status(500).json({
             success: false,
-            message: 'Server error during admin verification'
+            message: 'Error de autorización'
         });
     }
 };
 
-// Rate limiting middleware (basic implementation)
-const rateLimiter = (maxRequests = 100, windowMs = 15 * 60 * 1000) => {
-    const requests = new Map();
-    
-    return (req, res, next) => {
-        const clientId = req.ip || req.connection.remoteAddress;
-        const now = Date.now();
-        
-        if (!requests.has(clientId)) {
-            requests.set(clientId, { count: 1, resetTime: now + windowMs });
-            return next();
-        }
-        
-        const clientData = requests.get(clientId);
-        
-        if (now > clientData.resetTime) {
-            clientData.count = 1;
-            clientData.resetTime = now + windowMs;
-            return next();
-        }
-        
-        if (clientData.count >= maxRequests) {
-            return res.status(429).json({
-                success: false,
-                message: 'Too many requests, please try again later'
-            });
-        }
-        
-        clientData.count++;
-        next();
-    };
-};
-
-const authenticateJWT = verifyToken; // Alias for compatibility
-
 module.exports = {
     verifyToken,
-    authenticateJWT,
     optionalAuth,
-    requireAdmin,
-    rateLimiter
+    requireAdmin
 };

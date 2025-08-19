@@ -1,0 +1,447 @@
+<header class="global-header">
+    <div class="header-container">
+        <div class="logo-section">
+            <img src="./media/logo2.png" alt="Portfolio Management Logo" class="logo-img">
+            <div class="logo-text">
+                <h1 class="logo-title">Portfolio Management</h1>
+                <p class="logo-subtitle">Five minds, one winning portfolio.</p>
+            </div>
+        </div>
+        
+        <nav class="nav-menu" id="navMenu">
+            <a href="dashboard.html" class="nav-item">
+                <span class="nav-icon">📊</span>
+                <span class="nav-text">Dashboard</span>
+            </a>
+            <a href="buy-stocks.html" class="nav-item">
+                <span class="nav-icon">💰</span>
+                <span class="nav-text">Comprar</span>
+            </a>
+            <a href="manage-investments.html" class="nav-item">
+                <span class="nav-icon">📈</span>
+                <span class="nav-text">Vender</span>
+            </a>
+            <a href="market.html" class="nav-item">
+                <span class="nav-icon">🏪</span>
+                <span class="nav-text">Mercado</span>
+            </a>
+        </nav>
+        
+        <div class="user-section" id="userSection">
+            <div class="user-info">
+                <span class="user-name" id="headerUserName">Usuario</span>
+                <span class="user-balance" id="headerCashBalance">$0.00</span>
+            </div>
+            <div class="user-actions">
+                <button class="user-btn" onclick="showUserMenu()">
+                    <span class="user-icon">👤</span>
+                </button>
+                <div class="user-dropdown" id="userDropdown">
+                    <a href="change-password.html" class="dropdown-item">
+                        <span>🔒</span> Cambiar Contraseña
+                    </a>
+                    <a href="#" onclick="logout()" class="dropdown-item">
+                        <span>🚪</span> Cerrar Sesión
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <button class="mobile-menu-btn" id="mobileMenuBtn" onclick="toggleMobileMenu()">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+    </div>
+</header>
+
+<style>
+.global-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 15px 0;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+.header-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.logo-section {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex-shrink: 0;
+}
+
+.logo-img {
+    width: 50px;
+    height: 40px;
+    border-radius: 8px;
+}
+
+.logo-text {
+    display: flex;
+    flex-direction: column;
+}
+
+.logo-title {
+    margin: 0;
+    font-size: 18px;
+    font-weight: bold;
+    color: white;
+}
+
+.logo-subtitle {
+    margin: 0;
+    font-size: 11px;
+    opacity: 0.9;
+    color: rgba(255,255,255,0.8);
+}
+
+.nav-menu {
+    display: flex;
+    gap: 5px;
+    flex: 1;
+    justify-content: center;
+}
+
+.nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px 16px;
+    border-radius: 8px;
+    text-decoration: none;
+    color: rgba(255,255,255,0.9);
+    transition: all 0.3s ease;
+    min-width: 80px;
+}
+
+.nav-item:hover {
+    background: rgba(255,255,255,0.1);
+    color: white;
+    transform: translateY(-2px);
+}
+
+.nav-item.active {
+    background: rgba(255,255,255,0.2);
+    color: white;
+}
+
+.nav-icon {
+    font-size: 20px;
+    margin-bottom: 4px;
+}
+
+.nav-text {
+    font-size: 12px;
+    font-weight: 600;
+    text-align: center;
+}
+
+.user-section {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    position: relative;
+}
+
+.user-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    text-align: right;
+}
+
+.user-name {
+    font-size: 14px;
+    font-weight: bold;
+    color: white;
+}
+
+.user-balance {
+    font-size: 12px;
+    color: rgba(255,255,255,0.8);
+    background: rgba(255,255,255,0.1);
+    padding: 2px 8px;
+    border-radius: 10px;
+    margin-top: 2px;
+}
+
+.user-actions {
+    position: relative;
+}
+
+.user-btn {
+    background: rgba(255,255,255,0.1);
+    border: none;
+    color: white;
+    padding: 8px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.user-btn:hover {
+    background: rgba(255,255,255,0.2);
+    transform: scale(1.05);
+}
+
+.user-icon {
+    font-size: 18px;
+}
+
+.user-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+    min-width: 200px;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: all 0.3s ease;
+    z-index: 1001;
+    margin-top: 10px;
+}
+
+.user-dropdown.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    color: #333;
+    text-decoration: none;
+    transition: background 0.2s ease;
+    border-radius: 8px;
+    margin: 4px;
+}
+
+.dropdown-item:hover {
+    background: #f8f9fa;
+}
+
+.dropdown-item:first-child {
+    margin-top: 8px;
+}
+
+.dropdown-item:last-child {
+    margin-bottom: 8px;
+}
+
+.mobile-menu-btn {
+    display: none;
+    flex-direction: column;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 5px;
+    gap: 4px;
+}
+
+.mobile-menu-btn span {
+    width: 25px;
+    height: 3px;
+    background: white;
+    border-radius: 3px;
+    transition: all 0.3s ease;
+}
+
+.mobile-menu-btn.active span:nth-child(1) {
+    transform: rotate(45deg) translate(6px, 6px);
+}
+
+.mobile-menu-btn.active span:nth-child(2) {
+    opacity: 0;
+}
+
+.mobile-menu-btn.active span:nth-child(3) {
+    transform: rotate(-45deg) translate(6px, -6px);
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .header-container {
+        flex-wrap: wrap;
+        position: relative;
+    }
+    
+    .logo-text {
+        display: none;
+    }
+    
+    .nav-menu {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        flex-direction: column;
+        padding: 20px;
+        border-radius: 0 0 15px 15px;
+        gap: 10px;
+    }
+    
+    .nav-menu.show {
+        display: flex;
+    }
+    
+    .nav-item {
+        flex-direction: row;
+        justify-content: flex-start;
+        padding: 12px;
+        min-width: auto;
+    }
+    
+    .nav-icon {
+        margin-bottom: 0;
+        margin-right: 10px;
+    }
+    
+    .user-info {
+        display: none;
+    }
+    
+    .mobile-menu-btn {
+        display: flex;
+    }
+}
+
+@media (max-width: 480px) {
+    .header-container {
+        padding: 0 15px;
+    }
+    
+    .logo-img {
+        width: 40px;
+        height: 32px;
+    }
+    
+    .logo-title {
+        font-size: 16px;
+    }
+}
+</style>
+
+<script>
+// Header functionality
+let headerCashBalance = 0;
+
+function initializeHeader() {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const userId = localStorage.getItem('userId');
+    
+    if (user.firstName || user.username) {
+        document.getElementById('headerUserName').textContent = user.firstName || user.username;
+    }
+    
+    // Load cash balance
+    loadHeaderCashBalance();
+    
+    // Set active nav item based on current page
+    setActiveNavItem();
+    
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.user-actions')) {
+            closeUserMenu();
+        }
+    });
+}
+
+async function loadHeaderCashBalance() {
+    const userId = localStorage.getItem('userId');
+    if (!userId) return;
+    
+    try {
+        const response = await fetch('/api/investments/cash/balance', {
+            headers: { 'x-user-id': userId }
+        });
+        const result = await response.json();
+        if (result.success) {
+            headerCashBalance = parseFloat(result.data.cashBalance);
+            document.getElementById('headerCashBalance').textContent = 
+                `$${headerCashBalance.toLocaleString()}`;
+        }
+    } catch (error) {
+        console.error('Error loading header cash balance:', error);
+    }
+}
+
+function setActiveNavItem() {
+    const currentPage = window.location.pathname.split('/').pop() || 'index.html';
+    const navItems = document.querySelectorAll('.nav-item');
+    
+    navItems.forEach(item => {
+        const href = item.getAttribute('href');
+        if (href === currentPage || 
+            (currentPage === 'index.html' && href === 'dashboard.html')) {
+            item.classList.add('active');
+        } else {
+            item.classList.remove('active');
+        }
+    });
+}
+
+function showUserMenu() {
+    const dropdown = document.getElementById('userDropdown');
+    dropdown.classList.toggle('show');
+}
+
+function closeUserMenu() {
+    const dropdown = document.getElementById('userDropdown');
+    dropdown.classList.remove('show');
+}
+
+function toggleMobileMenu() {
+    const navMenu = document.getElementById('navMenu');
+    const mobileBtn = document.getElementById('mobileMenuBtn');
+    
+    navMenu.classList.toggle('show');
+    mobileBtn.classList.toggle('active');
+}
+
+function logout() {
+    localStorage.removeItem('userId');
+    localStorage.removeItem('user');
+    localStorage.removeItem('authToken');
+    window.location.href = 'login.html';
+}
+
+// Update cash balance from other pages
+function updateHeaderCashBalance(newBalance) {
+    headerCashBalance = newBalance;
+    document.getElementById('headerCashBalance').textContent = 
+        `$${parseFloat(newBalance).toLocaleString()}`;
+}
+
+// Initialize when DOM loads
+document.addEventListener('DOMContentLoaded', initializeHeader);
+
+// Auto-refresh balance every 30 seconds
+setInterval(loadHeaderCashBalance, 30000);
+</script>
